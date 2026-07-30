@@ -44,6 +44,7 @@ export interface PaperSource {
 export interface PaperRecord {
   id: string;
   title: string;
+  titleKind?: "paper_title" | "review_heading" | "identifier";
   authors: string[];
   venue: string;
   year: number;
@@ -57,6 +58,49 @@ export interface PaperRecord {
   metaReview: string | null;
   threads: ReviewThread[];
   source: PaperSource;
+}
+
+export interface DatasetRange {
+  split: "train" | "test";
+  start: number;
+  end: number;
+}
+
+export interface PaperZipRange {
+  localOffset: number;
+  compressedSize: number;
+  uncompressedSize: number;
+  compressionMethod: number;
+}
+
+export interface PaperIndexRecord {
+  id: string;
+  title: string;
+  titleKind: "paper_title" | "review_heading" | "identifier";
+  venue: string;
+  year: number;
+  decision: string;
+  accepted: boolean;
+  topics: string[];
+  scoreBefore: number[];
+  scoreAfter: number[];
+  reviewCount: number;
+  rebuttalRanges: DatasetRange[];
+  reviewRange: DatasetRange | null;
+  paperZip: PaperZipRange | null;
+  source: PaperSource;
+}
+
+export interface LibraryIndexFile {
+  meta: {
+    generatedAt: string | null;
+    source: string;
+    sourceUrl: string;
+    license: string;
+    paperCount: number;
+    conversationCount: number;
+  };
+  papers: PaperIndexRecord[];
 }
 
 export interface LibraryFile {

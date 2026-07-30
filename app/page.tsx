@@ -1,6 +1,11 @@
-import { libraryMeta, papers } from "@/lib/library";
+import { openReviewGeneratedAt, openReviewPapers } from "@/lib/library";
 import { ReaderApp } from "./reader-app";
 
 export default function Home() {
-  return <ReaderApp initialPapers={papers} libraryMeta={libraryMeta} />;
+  return (
+    <ReaderApp
+      seedPapers={openReviewPapers}
+      seedGeneratedAt={openReviewGeneratedAt}
+    />
+  );
 }
