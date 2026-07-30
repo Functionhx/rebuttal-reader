@@ -56,6 +56,12 @@ function noteBody(note) {
     "comment",
     "response",
     "author_response",
+    "rebuttal",
+    "response_to_reviewers",
+    "summary",
+    "strengths",
+    "weaknesses",
+    "questions",
     "metareview",
     "meta_review",
     "decision",
@@ -116,7 +122,13 @@ export function normalizeForum(root, registry, retrievedAt = new Date().toISOStr
   const { venueId, config } = venueConfigFor(root, registry);
   const replies = (root.details?.replies ?? root.replies ?? []).filter(isPublic);
   const byId = new Map(replies.map((note) => [note.id, note]));
-  const reviews = replies.filter((note) => matchesAny(note, config.review));
+  const reviews = replies.filter(
+    (note) =>
+      matchesAny(note, config.review) &&
+      !matchesAny(note, config.authorResponse) &&
+      !matchesAny(note, config.metaReview) &&
+      !matchesAny(note, config.decision),
+  );
   const reviewIds = new Set(reviews.map((note) => note.id));
   const metaReview = replies.find((note) =>
     matchesAny(note, config.metaReview),
@@ -196,9 +208,65 @@ export function normalizeForum(root, registry, retrievedAt = new Date().toISOStr
     };
   });
 
+  const assignedReplyIds = new Set(
+    threads.flatMap((thread) => thread.messages.map((message) => message.id)),
+  );
+  const generalAuthorResponses = replies
+    .filter((note) => !assignedReplyIds.has(note.id))
+    .filter(
+      (note) =>
+        !matchesAny(note, config.metaReview) &&
+        !matchesAny(note, config.decision),
+    )
+    .filter((note) => {
+      const authorSigned = (note.signatures ?? []).some((signature) =>
+        /authors?/i.test(signature),
+      );
+      const reviewerSigned = (note.signatures ?? []).some((signature) =>
+        /reviewers?|area_chairs?|editors?/i.test(signature),
+      );
+      return (
+        authorSigned ||
+        (!reviewerSigned && matchesAny(note, config.authorResponse))
+      );
+    })
+    .sort((a, b) => noteDate(a) - noteDate(b));
+
+  if (generalAuthorResponses.length) {
+    threads.push({
+      id: `${root.id}-general-response`,
+      label: "全体 Reviewer",
+      initialScore: null,
+      finalScore: null,
+      initialScoreLabel: null,
+      finalScoreLabel: null,
+      messages: generalAuthorResponses.map((note) => ({
+        id: note.id,
+        role: "author",
+        kind: "author_response",
+        title: messageTitle(note, "General author response"),
+        body: noteBody(note),
+      })),
+    });
+  }
+
+  if (
+    !threads.some((thread) =>
+      thread.messages.some(
+        (message) =>
+          message.kind === "author_response" && message.body.trim(),
+      ),
+    )
+  ) {
+    throw new Error(
+      `Forum ${root.id} has no public author response; skipped.`,
+    );
+  }
+
   const yearMatch = venueId.match(/(?:19|20)\d{2}/);
   const title = contentText(root, "title") || `OpenReview paper ${root.id}`;
   const authors = unwrap(root.content?.authors);
+  const keywords = unwrap(root.content?.keywords);
   const decision =
     contentText(decisionNote ?? {}, "decision", "recommendation") ||
     contentText(root, "venue") ||
@@ -208,13 +276,24 @@ export function normalizeForum(root, registry, retrievedAt = new Date().toISOStr
     id: root.id,
     title,
     authors: Array.isArray(authors) ? authors.map(String) : [],
-    venue: venueId || "OpenReview",
+    venue:
+      config.label ||
+      contentText(root, "venue") ||
+      venueId ||
+      "OpenReview",
     year: yearMatch ? Number(yearMatch[0]) : new Date().getFullYear(),
-    materialType: "conference_rebuttal",
+    materialType: /TMLR/i.test(venueId)
+      ? "response_to_reviewers"
+      : "conference_rebuttal",
     decision,
     accepted: /accept|poster|spotlight|oral/i.test(decision),
     abstract: contentText(root, "abstract"),
-    topics: ["OpenReview", "公开讨论"],
+    topics: Array.from(
+      new Set([
+        ...(Array.isArray(keywords) ? keywords.map(String) : []),
+        contentText(root, "primary_area"),
+      ].filter(Boolean)),
+    ).slice(0, 6),
     scoreBefore: threads
       .map((thread) => thread.initialScore)
       .filter((score) => score !== null),

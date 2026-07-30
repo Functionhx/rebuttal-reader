@@ -61,6 +61,10 @@ interface DetailPayload {
   } | null;
 }
 
+interface ReviewBenchDetailPayload {
+  paper: PaperRecord;
+}
+
 const PAGE_SIZE = 50;
 
 const materialLabels = {
@@ -148,7 +152,7 @@ function scoreLabel(
 ) {
   if (delta === null) {
     if (beforeCount !== undefined && afterCount !== undefined) {
-      return `${beforeCount}→${afterCount} 个评分`;
+      return `评分记录：${beforeCount} 初评 / ${afterCount} 终评`;
     }
     return "评分记录不完整";
   }
@@ -189,6 +193,10 @@ function seedSummary(paper: PaperRecord): PaperIndexRecord {
     rebuttalRanges: [],
     reviewRange: null,
     paperZip: null,
+    reviewBench: null,
+    openReviewArchive: null,
+    iclrArchive: null,
+    detailUrl: null,
     source: paper.source,
   };
 }
@@ -436,7 +444,7 @@ function ThreadTimeline({ thread }: { thread: ReviewThread }) {
     <div className="timeline">
       <div className="thread-intro">
         <div>
-          <span>该 Reviewer 评分</span>
+          <span>该线程评分</span>
           <strong>
             {thread.initialScore ?? "未记录"} <i>→</i>{" "}
             {thread.finalScore ?? "未记录"}
@@ -555,7 +563,9 @@ function ReadingAside({
         <p>
           {paper.source.type === "derived_dataset"
             ? "来自 Re² 派生数据；原始 OpenReview Forum 才是 canonical source。"
-            : "由 OpenReview API 读取，采集时已检查公开 readers 权限。"}
+            : paper.source.type === "openreview_archive"
+              ? "来自 OpenReview 公共归档；正文按篇读取，原始 Forum 是 canonical source。"
+              : "由 OpenReview API 读取，采集时已检查公开 readers 权限。"}
         </p>
         <a
           className="source-link"
@@ -611,15 +621,24 @@ function UpdateDialog({
         <p>
           当前索引有 {paperCount.toLocaleString()} 篇、{" "}
           {conversationCount.toLocaleString()} 条讨论，生成于{" "}
-          {formatDate(generatedAt)}。网站没有后台常驻爬虫。
+          {formatDate(generatedAt)}。网站没有后台常驻爬虫；部署包只保存轻量目录，
+          正文会在你点开单篇时按 Forum 或安全字节范围读取并由 CDN 缓存。
         </p>
         <div className="command-block">
-          <span>重新拉取并生成完整 Re² 索引</span>
+          <span>刷新全部公开目录</span>
           <code>npm run update:data</code>
         </div>
         <div className="command-block">
-          <span>忽略缓存，强制刷新全量文件</span>
-          <code>npm run update:data -- --refresh</code>
+          <span>只刷新 2020–2026 多会议公开归档</span>
+          <code>npm run update:reviewbench</code>
+        </div>
+        <div className="command-block">
+          <span>刷新 OpenReview 公共历史归档</span>
+          <code>npm run update:openreview-archive</code>
+        </div>
+        <div className="command-block">
+          <span>刷新 ICLR 2026 公共讨论</span>
+          <code>npm run update:iclr-archive</code>
         </div>
         <div className="command-block">
           <span>补充一个公开 OpenReview Forum</span>
@@ -628,7 +647,8 @@ function UpdateDialog({
         <div className="privacy-rule">
           <strong>公开性闸门</strong>
           <span>
-            OpenReview 适配器只接纳 readers 包含 everyone 的 Note；私有内容会直接跳过。
+            归档只收录公开数据；OpenReview 增量适配器还会逐条检查 readers
+            包含 everyone，私有内容直接跳过。
           </span>
         </div>
       </section>
@@ -698,14 +718,44 @@ export function ReaderApp({
     let cancelled = false;
     async function loadIndex() {
       try {
-        const response = await fetch("/data/re2/index.json", {
-          cache: "no-cache",
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const index = (await response.json()) as LibraryIndexFile;
+        const load = async (
+          url: string,
+          depth = 0,
+        ): Promise<LibraryIndexFile[]> => {
+          try {
+            const response = await fetch(url, { cache: "no-cache" });
+            if (!response.ok) return [];
+            const index = (await response.json()) as LibraryIndexFile;
+            if (index.meta.shards?.length && depth < 2) {
+              const groups = await Promise.all(
+                index.meta.shards.map((shard) =>
+                  load(shard.url, depth + 1),
+                ),
+              );
+              return groups.flat();
+            }
+            return [index];
+          } catch {
+            return [];
+          }
+        };
+        const groups = await Promise.all([
+          load("/data/re2/index.json"),
+          load("/data/reviewbench/index.json"),
+          load("/data/openreview-archive/index.json"),
+          load("/data/iclr-archive/index.json"),
+          load("/data/openreview/index.json"),
+        ]);
+        const indexes = groups.flat();
+        if (indexes.length === 0) {
+          throw new Error("No library index is available.");
+        }
         if (cancelled) return;
 
-        const byId = new Map(index.papers.map((paper) => [paper.id, paper]));
+        const byId = new Map<string, PaperIndexRecord>();
+        for (const index of indexes) {
+          for (const paper of index.papers) byId.set(paper.id, paper);
+        }
         for (const paper of seedPapers) byId.set(paper.id, seedSummary(paper));
         const merged = Array.from(byId.values()).sort(
           (a, b) =>
@@ -716,18 +766,19 @@ export function ReaderApp({
         setPapers(merged);
         setLibraryMeta({
           generatedAt:
-            [index.meta.generatedAt, seedGeneratedAt]
+            [
+              ...indexes.map((index) => index.meta.generatedAt),
+              seedGeneratedAt,
+            ]
               .filter((value): value is string => Boolean(value))
               .sort()
               .at(-1) ?? null,
-          sourceCount: 1 + (seedPapers.length ? 1 : 0),
+          sourceCount: indexes.length + (seedPapers.length ? 1 : 0),
           paperCount: merged.length,
-          conversationCount:
-            index.meta.conversationCount +
-            seedPapers.reduce(
-              (count, paper) => count + paper.threads.length,
-              0,
-            ),
+          conversationCount: merged.reduce(
+            (count, paper) => count + paper.reviewCount,
+            0,
+          ),
         });
         setSelectedPaperId((current) => current || merged[0]?.id || "");
         setIndexError("");
@@ -765,15 +816,50 @@ export function ReaderApp({
     setDetailLoading(true);
     setDetailError("");
 
-    fetch("/api/re2", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        paperId: selectedSummary.id,
-        rebuttalRanges: selectedSummary.rebuttalRanges,
-        reviewRange: selectedSummary.reviewRange,
-        paperZip: selectedSummary.paperZip,
-      }),
+    const detailRequest = selectedSummary.iclrArchive
+      ? {
+          url: "/api/iclr-archive",
+          body: {
+            paperId: selectedSummary.id,
+            pointer: selectedSummary.iclrArchive,
+          },
+        }
+      : selectedSummary.openReviewArchive
+      ? {
+          url: "/api/openreview-archive",
+          body: {
+            paperId: selectedSummary.id,
+            pointer: selectedSummary.openReviewArchive,
+          },
+        }
+      : selectedSummary.reviewBench
+      ? {
+          url: "/api/reviewbench",
+          body: {
+            paperId: selectedSummary.id,
+            pointer: selectedSummary.reviewBench,
+          },
+        }
+      : selectedSummary.detailUrl
+        ? { url: selectedSummary.detailUrl, body: null }
+        : {
+            url: "/api/re2",
+            body: {
+              paperId: selectedSummary.id,
+              rebuttalRanges: selectedSummary.rebuttalRanges,
+              reviewRange: selectedSummary.reviewRange,
+              paperZip: selectedSummary.paperZip,
+            },
+          };
+
+    fetch(detailRequest.url, {
+      method: detailRequest.body ? "POST" : "GET",
+      headers: detailRequest.body
+        ? { "Content-Type": "application/json" }
+        : undefined,
+      body: detailRequest.body
+        ? JSON.stringify(detailRequest.body)
+        : undefined,
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -781,10 +867,15 @@ export function ReaderApp({
         if (!response.ok) {
           throw new Error(payload.error || `HTTP ${response.status}`);
         }
-        return payload as DetailPayload;
+        return payload as DetailPayload | ReviewBenchDetailPayload | PaperRecord;
       })
       .then((payload) => {
-        const detail = hydratePaper(selectedSummary, payload);
+        const detail =
+          "paper" in payload
+            ? payload.paper
+            : "rebuttals" in payload
+              ? hydratePaper(selectedSummary, payload)
+              : payload;
         detailCache.current.set(detail.id, detail);
         setSelectedPaper(detail);
         setDetailLoading(false);
@@ -814,15 +905,27 @@ export function ReaderApp({
     return () => controller.abort();
   }, [detailAttempt, selectedSummary]);
 
-  const venues = useMemo(
-    () => [
+  const venues = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const paper of papers) {
+      const label = compactVenue(paper.venue);
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    return [
       "全部",
-      ...Array.from(
-        new Set(papers.map((paper) => compactVenue(paper.venue))),
-      ).sort((a, b) => b.localeCompare(a)),
-    ],
-    [papers],
-  );
+      ...Array.from(counts)
+        .sort(
+          ([venueA, countA], [venueB, countB]) =>
+            countB - countA || venueB.localeCompare(venueA),
+        )
+        .map(([label]) => label),
+    ];
+  }, [papers]);
+  const featuredVenues = useMemo(() => {
+    const featured = venues.slice(0, 9);
+    if (venue !== "全部" && !featured.includes(venue)) featured.push(venue);
+    return featured;
+  }, [venue, venues]);
 
   const filteredPapers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -894,7 +997,7 @@ export function ReaderApp({
 
         <div className="library-heading">
           <div>
-            <span className="eyebrow">Full case library</span>
+            <span className="eyebrow">Public beta · full case library</span>
             <h2>从质疑到决定</h2>
           </div>
           <span
@@ -931,7 +1034,7 @@ export function ReaderApp({
         </label>
 
         <div className="venue-filters" aria-label="按会议筛选">
-          {venues.map((item) => (
+          {featuredVenues.map((item) => (
             <button
               type="button"
               key={item}
@@ -944,6 +1047,22 @@ export function ReaderApp({
               {item}
             </button>
           ))}
+          {venues.length > featuredVenues.length && (
+            <select
+              value={venue}
+              aria-label="选择全部会议与年份"
+              onChange={(event) => {
+                setVenue(event.target.value);
+                setPage(0);
+              }}
+            >
+              {venues.map((item) => (
+                <option value={item} key={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <nav className="paper-list" aria-label="Rebuttal 案例">
@@ -1012,13 +1131,23 @@ export function ReaderApp({
           title="这篇暂时没有读出来"
           body={detailError}
           action={
-            <button
-              className="retry-button"
-              type="button"
-              onClick={() => setDetailAttempt((value) => value + 1)}
-            >
-              重新读取
-            </button>
+            <div className="reader-state-actions">
+              <button
+                className="retry-button"
+                type="button"
+                onClick={() => setDetailAttempt((value) => value + 1)}
+              >
+                重新读取
+              </button>
+              <a
+                className="retry-button"
+                href={selectedSummary.source.originalUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                打开原始 Forum ↗
+              </a>
+            </div>
           }
         />
       )}
@@ -1034,7 +1163,9 @@ export function ReaderApp({
               <span className="source-badge">
                 {selectedPaper.source.type === "derived_dataset"
                   ? "Re² 派生数据"
-                  : "OpenReview API"}
+                  : selectedPaper.source.type === "openreview_archive"
+                    ? "OpenReview 公共归档"
+                    : "OpenReview API"}
               </span>
               <a
                 href={selectedPaper.source.originalUrl}

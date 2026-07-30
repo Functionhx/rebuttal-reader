@@ -13,11 +13,15 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "update": "npm run update:data",
-    "update:data": "node scripts/update-re2.mjs",
+    "update:data": "node scripts/update-re2.mjs && node scripts/update-reviewbench.mjs && node scripts/update-openreview-archive.mjs && node scripts/update-iclr-archive.mjs",
+    "update:reviewbench": "node scripts/update-reviewbench.mjs",
+    "update:openreview-archive": "node scripts/update-openreview-archive.mjs",
+    "update:iclr-archive": "node scripts/update-iclr-archive.mjs",
     "update:openreview": "node scripts/update-openreview.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
+    "hyparquet": "^1.27.0",
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6"

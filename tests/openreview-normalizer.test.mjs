@@ -112,3 +112,36 @@ test("normalizer builds a review-response-follow-up chain", () => {
   assert.equal(paper.threads[0].initialScore, 5);
   assert.equal(paper.threads[0].finalScore, 7);
 });
+
+test("normalizer skips a public forum that has reviews but no author response", () => {
+  const root = {
+    id: "paper-without-response",
+    domain: "ICLR.cc/2026/Conference",
+    readers: ["everyone"],
+    content: {
+      title: { value: "A Paper Without a Rebuttal" },
+    },
+    details: {
+      replies: [
+        {
+          id: "review-only",
+          forum: "paper-without-response",
+          replyto: "paper-without-response",
+          readers: ["everyone"],
+          invitations: [
+            "ICLR.cc/2026/Conference/-/Official_Review",
+          ],
+          content: {
+            review: { value: "A public review without a reply." },
+            rating: { value: "4" },
+          },
+        },
+      ],
+    },
+  };
+
+  assert.throws(
+    () => normalizeForum(root, registry),
+    /no public author response/i,
+  );
+});

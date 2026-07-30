@@ -6,6 +6,7 @@ export type MaterialType =
 export type SourceType =
   | "derived_dataset"
   | "openreview_api"
+  | "openreview_archive"
   | "author_upload";
 
 export type MessageKind =
@@ -73,6 +74,26 @@ export interface PaperZipRange {
   compressionMethod: number;
 }
 
+export interface ReviewBenchPointer {
+  split: "neurips" | "iclr" | "icml" | "tmlr" | "emnlp" | "corl" | "colm";
+  file: string;
+  byteLength: number;
+  row: number;
+}
+
+export interface OpenReviewArchivePointer {
+  dataset: "Jasonpicky/openreview_raw";
+}
+
+export interface IclrArchivePointer {
+  dataset: "MlouisBE/iclr-rebuttal-analysis";
+  file: string;
+  byteLength: number;
+  start: number;
+  end: number;
+  year: number;
+}
+
 export interface PaperIndexRecord {
   id: string;
   title: string;
@@ -88,6 +109,10 @@ export interface PaperIndexRecord {
   rebuttalRanges: DatasetRange[];
   reviewRange: DatasetRange | null;
   paperZip: PaperZipRange | null;
+  reviewBench?: ReviewBenchPointer | null;
+  openReviewArchive?: OpenReviewArchivePointer | null;
+  iclrArchive?: IclrArchivePointer | null;
+  detailUrl?: string | null;
   source: PaperSource;
 }
 
@@ -99,6 +124,12 @@ export interface LibraryIndexFile {
     license: string;
     paperCount: number;
     conversationCount: number;
+    detailStorage?: string;
+    shards?: Array<{
+      url: string;
+      paperCount: number;
+      conversationCount: number;
+    }>;
   };
   papers: PaperIndexRecord[];
 }

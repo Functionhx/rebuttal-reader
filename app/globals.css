@@ -205,6 +205,20 @@ input:focus-visible {
   font-size: 10px;
 }
 
+.venue-filters select {
+  max-width: 158px;
+  flex: 0 0 auto;
+  padding: 7px 28px 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  outline: 0;
+  background: var(--white);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+}
+
 .venue-filters button.is-active {
   border-color: var(--ink);
   background: var(--ink);
@@ -1174,8 +1188,15 @@ input:focus-visible {
   line-height: 1.7;
 }
 
-.reader-state .retry-button {
+.reader-state-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 20px;
+}
+
+.reader-state-actions .retry-button {
+  margin: 0;
+  text-decoration: none;
 }
 
 @media (max-width: 1180px) {

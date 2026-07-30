@@ -1,36 +1,89 @@
 {
-  "ICLR.cc/2025/Conference": {
+  "ICLR.cc/2026/Conference": {
+    "label": "ICLR 2026",
     "submission": ["Submission", "Blind_Submission"],
     "review": ["Official_Review"],
-    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal", "Response_to_the_Review"],
+    "metaReview": ["Meta_Review"],
+    "decision": ["Decision"]
+  },
+  "ICLR.cc/2025/Conference": {
+    "label": "ICLR 2025",
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal", "Response_to_the_Review"],
     "metaReview": ["Meta_Review"],
     "decision": ["Decision"]
   },
   "ICLR.cc/2024/Conference": {
+    "label": "ICLR 2024",
     "submission": ["Submission", "Blind_Submission"],
     "review": ["Official_Review"],
-    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal", "Response_to_the_Review"],
     "metaReview": ["Meta_Review"],
     "decision": ["Decision"]
   },
   "ICLR.cc/2023/Conference": {
+    "label": "ICLR 2023",
     "submission": ["Submission", "Blind_Submission"],
     "review": ["Official_Review"],
-    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal", "Response_to_the_Review"],
+    "metaReview": ["Meta_Review"],
+    "decision": ["Decision"]
+  },
+  "NeurIPS.cc/2025/Conference": {
+    "label": "NeurIPS 2025",
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal", "Response_to_the_Review"],
+    "metaReview": ["Meta_Review"],
+    "decision": ["Decision"]
+  },
+  "NeurIPS.cc/2024/Conference": {
+    "label": "NeurIPS 2024",
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal", "Response_to_the_Review"],
+    "metaReview": ["Meta_Review"],
+    "decision": ["Decision"]
+  },
+  "ICML.cc/2025/Conference": {
+    "label": "ICML 2025",
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal", "Response_to_the_Review"],
+    "metaReview": ["Meta_Review"],
+    "decision": ["Decision"]
+  },
+  "COLM.cc/2025/Conference": {
+    "label": "COLM 2025",
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal", "Response_to_the_Review"],
+    "metaReview": ["Meta_Review"],
+    "decision": ["Decision"]
+  },
+  "COLM.cc/2024/Conference": {
+    "label": "COLM 2024",
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal", "Response_to_the_Review"],
     "metaReview": ["Meta_Review"],
     "decision": ["Decision"]
   },
   "TMLR": {
+    "label": "TMLR",
     "submission": ["Submission"],
     "review": ["Official_Review"],
-    "authorResponse": ["Author_Response", "Official_Comment"],
+    "authorResponse": ["Author_Response", "Official_Comment", "Rebuttal", "Response_to_the_Review"],
     "metaReview": ["Meta_Review", "Recommendation"],
     "decision": ["Decision"]
   },
   "_fallback": {
+    "label": "OpenReview",
     "submission": ["Submission", "Blind_Submission"],
     "review": ["Official_Review", "Review"],
-    "authorResponse": ["Author_Response", "Official_Response", "Official_Comment", "Rebuttal"],
+    "authorResponse": ["Author_Response", "Official_Response", "Official_Comment", "Rebuttal", "Response_to_the_Review"],
     "metaReview": ["Meta_Review", "Meta_Review_Revision", "Recommendation"],
     "decision": ["Decision"]
   }
