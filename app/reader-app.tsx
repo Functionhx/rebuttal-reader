@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -78,6 +79,13 @@ const eventLabels: Record<MessageKind, string> = {
   author_response: "Author Response",
   reviewer_followup: "Reviewer Follow-up",
   public_comment: "Public Comment",
+};
+
+const sourceLabels: Record<PaperRecord["source"]["type"], string> = {
+  derived_dataset: "Re² 派生数据",
+  openreview_api: "OpenReview API",
+  openreview_archive: "OpenReview 公共归档",
+  author_upload: "作者公开上传",
 };
 
 function formatDate(value: string | null) {
@@ -561,19 +569,30 @@ function ReadingAside({
       <section>
         <span className="aside-label">来源与边界</span>
         <p>
-          {paper.source.type === "derived_dataset"
-            ? "来自 Re² 派生数据；原始 OpenReview Forum 才是 canonical source。"
-            : paper.source.type === "openreview_archive"
-              ? "来自 OpenReview 公共归档；正文按篇读取，原始 Forum 是 canonical source。"
-              : "由 OpenReview API 读取，采集时已检查公开 readers 权限。"}
+          {paper.source.type === "author_upload"
+            ? "材料由作者公开上传并经过线程重组与排版；权利与原始版本以来源链接为准。"
+            : `${sourceLabels[paper.source.type]}经过线程重组与排版；原始 Forum 始终是 canonical source。`}
         </p>
+        <dl className="provenance-list">
+          <div>
+            <dt>License</dt>
+            <dd>{paper.source.license || "以源站为准"}</dd>
+          </div>
+          <div>
+            <dt>Retrieved</dt>
+            <dd>{formatDate(paper.source.retrievedAt)}</dd>
+          </div>
+        </dl>
         <a
           className="source-link"
           href={paper.source.originalUrl}
           target="_blank"
           rel="noreferrer"
         >
-          打开原始 Forum <span aria-hidden="true">↗</span>
+          {paper.source.type === "author_upload"
+            ? "打开原始来源"
+            : "打开原始 Forum"}{" "}
+          <span aria-hidden="true">↗</span>
         </a>
       </section>
     </aside>
@@ -700,6 +719,7 @@ export function ReaderApp({
   const [indexError, setIndexError] = useState("");
   const [query, setQuery] = useState("");
   const [venue, setVenue] = useState("全部");
+  const [year, setYear] = useState("全部");
   const [page, setPage] = useState(0);
   const [selectedPaperId, setSelectedPaperId] = useState(
     seedPapers[0]?.id ?? "",
@@ -713,6 +733,18 @@ export function ReaderApp({
   const [selectedThread, setSelectedThread] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("chain");
   const [showUpdate, setShowUpdate] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const deferredQuery = useDeferredValue(query);
+
+  useEffect(() => {
+    if (!showLibrary) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowLibrary(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showLibrary]);
 
   useEffect(() => {
     let cancelled = false;
@@ -780,7 +812,17 @@ export function ReaderApp({
             0,
           ),
         });
-        setSelectedPaperId((current) => current || merged[0]?.id || "");
+        const requestedPaperId =
+          typeof window === "undefined"
+            ? ""
+            : new URLSearchParams(window.location.search).get("paper") || "";
+        setSelectedPaperId(
+          (current) =>
+            current ||
+            (requestedPaperId && byId.has(requestedPaperId)
+              ? requestedPaperId
+              : merged[0]?.id || ""),
+        );
         setIndexError("");
       } catch {
         if (!cancelled) {
@@ -921,17 +963,22 @@ export function ReaderApp({
         .map(([label]) => label),
     ];
   }, [papers]);
-  const featuredVenues = useMemo(() => {
-    const featured = venues.slice(0, 9);
-    if (venue !== "全部" && !featured.includes(venue)) featured.push(venue);
-    return featured;
-  }, [venue, venues]);
+  const years = useMemo(
+    () => [
+      "全部",
+      ...Array.from(new Set(papers.map((paper) => paper.year)))
+        .sort((a, b) => b - a)
+        .map(String),
+    ],
+    [papers],
+  );
 
   const filteredPapers = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = deferredQuery.trim().toLowerCase();
     return papers.filter((paper) => {
       const venueMatch =
         venue === "全部" || compactVenue(paper.venue) === venue;
+      const yearMatch = year === "全部" || paper.year === Number(year);
       const queryMatch =
         !normalized ||
         [
@@ -944,9 +991,9 @@ export function ReaderApp({
           .join(" ")
           .toLowerCase()
           .includes(normalized);
-      return venueMatch && queryMatch;
+      return venueMatch && yearMatch && queryMatch;
     });
-  }, [papers, query, venue]);
+  }, [deferredQuery, papers, venue, year]);
 
   const pageCount = Math.max(1, Math.ceil(filteredPapers.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
@@ -960,7 +1007,36 @@ export function ReaderApp({
     setSelectedThread(0);
     setViewMode("chain");
     setDetailError("");
+    setShowLibrary(false);
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 979px)").matches
+    ) {
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById("reading-workspace")
+          ?.scrollIntoView({ block: "start" });
+      });
+    }
+    if (typeof window !== "undefined") {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set("paper", paperId);
+      window.history.replaceState({}, "", nextUrl);
+    }
   }, []);
+
+  const copyPaperLink = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("paper", selectedSummary?.id ?? "");
+    try {
+      await navigator.clipboard.writeText(nextUrl.toString());
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 1600);
+    } catch {
+      window.prompt("复制这篇案例的链接", nextUrl.toString());
+    }
+  }, [selectedSummary?.id]);
 
   if (indexLoading && papers.length === 0) {
     return (
@@ -985,307 +1061,404 @@ export function ReaderApp({
   const delta = selectedPaper ? scoreDelta(selectedPaper) : null;
 
   return (
-    <div className="reader-shell">
-      <aside className="library-panel">
-        <header className="brand">
-          <span className="brand-mark">R/</span>
-          <div>
+    <div className="reader-app">
+      <header className="app-header">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            R/
+          </span>
+          <div className="brand-lockup">
             <strong>答辩录</strong>
             <span>Rebuttal Reader</span>
           </div>
-        </header>
-
-        <div className="library-heading">
-          <div>
-            <span className="eyebrow">Public beta · full case library</span>
-            <h2>从质疑到决定</h2>
-          </div>
-          <span
-            className="paper-count"
-            title={`${libraryMeta.conversationCount.toLocaleString()} 条 rebuttal 对话`}
-          >
-            {libraryMeta.paperCount.toLocaleString()}
-          </span>
         </div>
+        <span className="header-rule" aria-hidden="true" />
+        <p className="app-purpose">公开同行评议的因果阅读器</p>
+        <div className="header-meta">
+          <span className="header-stat">
+            <strong>{libraryMeta.paperCount.toLocaleString()}</strong>
+            <small>公开案例</small>
+          </span>
+          <button
+            type="button"
+            className="header-action"
+            onClick={() => setShowUpdate(true)}
+          >
+            数据与更新
+          </button>
+        </div>
+        <button
+          type="button"
+          className="mobile-library-button"
+          aria-controls="case-library"
+          aria-expanded={showLibrary}
+          onClick={() => setShowLibrary(true)}
+        >
+          <span aria-hidden="true">☰</span>
+          案例库
+        </button>
+      </header>
 
-        <label className="search-box">
-          <span aria-hidden="true">⌕</span>
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(0);
-            }}
-            placeholder="搜索主题、会议或 OpenReview ID"
-            aria-label="搜索案例"
-          />
-          {query && (
+      <div className="reader-shell">
+        <aside
+          id="case-library"
+          className={`library-panel ${showLibrary ? "is-mobile-open" : ""}`}
+          aria-label="Rebuttal 案例库"
+        >
+          <div className="library-heading">
+            <div>
+              <span className="eyebrow">Public beta · case archive</span>
+              <h2>从质疑到决定</h2>
+            </div>
             <button
               type="button"
-              aria-label="清空搜索"
-              onClick={() => {
-                setQuery("");
-                setPage(0);
-              }}
+              className="library-close"
+              aria-label="关闭案例库"
+              onClick={() => setShowLibrary(false)}
             >
               ×
             </button>
-          )}
-        </label>
+          </div>
+          <p className="library-description">
+            搜索公开 Review、作者回复与最终决定。正文仅在点开后读取。
+          </p>
 
-        <div className="venue-filters" aria-label="按会议筛选">
-          {featuredVenues.map((item) => (
-            <button
-              type="button"
-              key={item}
-              className={venue === item ? "is-active" : ""}
-              onClick={() => {
-                setVenue(item);
-                setPage(0);
-              }}
-            >
-              {item}
-            </button>
-          ))}
-          {venues.length > featuredVenues.length && (
-            <select
-              value={venue}
-              aria-label="选择全部会议与年份"
+          <label className="search-box">
+            <span aria-hidden="true">⌕</span>
+            <input
+              value={query}
               onChange={(event) => {
-                setVenue(event.target.value);
+                setQuery(event.target.value);
                 setPage(0);
               }}
-            >
-              {venues.map((item) => (
-                <option value={item} key={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+              placeholder="标题、主题、会议或 Forum ID"
+              aria-label="搜索案例"
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="清空搜索"
+                onClick={() => {
+                  setQuery("");
+                  setPage(0);
+                }}
+              >
+                ×
+              </button>
+            )}
+          </label>
 
-        <nav className="paper-list" aria-label="Rebuttal 案例">
-          <div className="result-summary">
-            <span>{filteredPapers.length.toLocaleString()} 篇匹配</span>
+          <div className="filter-grid">
+            <label className="filter-control">
+              <span>会议 / Track</span>
+              <select
+                value={venue}
+                onChange={(event) => {
+                  setVenue(event.target.value);
+                  setPage(0);
+                }}
+              >
+                {venues.map((item) => (
+                  <option value={item} key={item}>
+                    {item === "全部" ? "全部会议" : item}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="filter-control">
+              <span>年份</span>
+              <select
+                value={year}
+                onChange={(event) => {
+                  setYear(event.target.value);
+                  setPage(0);
+                }}
+              >
+                {years.map((item) => (
+                  <option value={item} key={item}>
+                    {item === "全部" ? "全部年份" : item}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="result-summary" aria-live="polite">
             <span>
-              {safePage + 1} / {pageCount}
+              <strong>{filteredPapers.length.toLocaleString()}</strong> 篇匹配
             </span>
-          </div>
-          {visiblePapers.map((paper) => (
-            <PaperCard
-              paper={paper}
-              selected={paper.id === selectedSummary.id}
-              onSelect={() => choosePaper(paper.id)}
-              key={paper.id}
-            />
-          ))}
-          {filteredPapers.length === 0 && (
-            <div className="no-results">
-              <strong>没有匹配案例</strong>
-              <span>换个关键词或清除会议筛选。</span>
-            </div>
-          )}
-          {filteredPapers.length > 0 && (
-            <div className="pagination">
+            <span>
+              {safePage + 1} / {pageCount} 页
+            </span>
+            {(query || venue !== "全部" || year !== "全部") && (
               <button
                 type="button"
-                disabled={safePage === 0}
-                onClick={() => setPage((value) => Math.max(0, value - 1))}
+                onClick={() => {
+                  setQuery("");
+                  setVenue("全部");
+                  setYear("全部");
+                  setPage(0);
+                }}
               >
-                ← 上一页
+                清除筛选
               </button>
-              <button
-                type="button"
-                disabled={safePage >= pageCount - 1}
-                onClick={() =>
-                  setPage((value) => Math.min(pageCount - 1, value + 1))
-                }
-              >
-                下一页 →
-              </button>
-            </div>
-          )}
-        </nav>
-
-        <footer className="library-footer">
-          <span>
-            {formatDate(libraryMeta.generatedAt)} ·{" "}
-            {libraryMeta.conversationCount.toLocaleString()} 条对话
-          </span>
-          <button type="button" onClick={() => setShowUpdate(true)}>
-            手动更新 <span aria-hidden="true">↗</span>
-          </button>
-        </footer>
-      </aside>
-
-      {detailLoading && (
-        <ReaderState
-          title="正在读取这篇的完整讨论"
-          body="只拉取当前论文的 Review、Author Response 与后续追问。"
-        />
-      )}
-
-      {!detailLoading && detailError && (
-        <ReaderState
-          title="这篇暂时没有读出来"
-          body={detailError}
-          action={
-            <div className="reader-state-actions">
-              <button
-                className="retry-button"
-                type="button"
-                onClick={() => setDetailAttempt((value) => value + 1)}
-              >
-                重新读取
-              </button>
-              <a
-                className="retry-button"
-                href={selectedSummary.source.originalUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                打开原始 Forum ↗
-              </a>
-            </div>
-          }
-        />
-      )}
-
-      {!detailLoading && !detailError && selectedPaper && (
-        <main className="paper-reader">
-          <div className="reader-toolbar">
-            <div className="material-badge">
-              <span />
-              {materialLabels[selectedPaper.materialType]}
-            </div>
-            <div className="toolbar-actions">
-              <span className="source-badge">
-                {selectedPaper.source.type === "derived_dataset"
-                  ? "Re² 派生数据"
-                  : selectedPaper.source.type === "openreview_archive"
-                    ? "OpenReview 公共归档"
-                    : "OpenReview API"}
-              </span>
-              <a
-                href={selectedPaper.source.originalUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                原始 Forum ↗
-              </a>
-            </div>
+            )}
           </div>
 
-          <header className="paper-hero">
-            <div className="paper-meta-line">
-              <span>{compactVenue(selectedPaper.venue)}</span>
-              <span>{selectedPaper.year}</span>
-              <span>{selectedPaper.id}</span>
-            </div>
-            <h1>{selectedPaper.title}</h1>
-            {selectedPaper.titleKind !== "paper_title" && (
-              <p className="metadata-note">
-                数据包未解析出论文标题；这里展示 Reviewer 的主题标题或 OpenReview
-                ID，并明确保留这一缺失。
-              </p>
-            )}
-            {selectedPaper.authors.length > 0 && (
-              <p className="authors">{selectedPaper.authors.join(" · ")}</p>
-            )}
-            <p className="abstract">
-              {selectedPaper.abstract ||
-                "该条目的论文摘要未在当前源记录中保存；Review 与 Author Response 正文完整保留。"}
-            </p>
-            <div className="topic-row">
-              {selectedPaper.topics.map((topic) => (
-                <span key={topic}>{topic}</span>
-              ))}
-            </div>
-          </header>
-
-          <section className="score-journey" aria-label="评分变化">
-            <div className="score-stage">
-              <span>已记录初评</span>
-              <ScoreDots
-                scores={selectedPaper.scoreBefore}
-                emptyLabel="未保存"
+          <nav className="paper-list" aria-label="Rebuttal 案例">
+            {visiblePapers.map((paper) => (
+              <PaperCard
+                paper={paper}
+                selected={paper.id === selectedSummary.id}
+                onSelect={() => choosePaper(paper.id)}
+                key={paper.id}
               />
-            </div>
-            <div className="journey-arrow" aria-hidden="true">
-              <span>
-                {scoreLabel(
-                  delta,
-                  selectedPaper.scoreBefore.length,
-                  selectedPaper.scoreAfter.length,
-                )}
-              </span>
-              <i>→</i>
-            </div>
-            <div className="score-stage">
-              <span>最终评分</span>
-              <ScoreDots
-                scores={selectedPaper.scoreAfter}
-                emptyLabel="未保存"
-                final
-              />
-            </div>
-            <div className="decision-pill">
-              <span>Decision</span>
-              <strong>{selectedPaper.decision}</strong>
-            </div>
-          </section>
-
-          <div className="view-tabs" role="tablist" aria-label="阅读模式">
-            {(
-              [
-                ["chain", "逐 Reviewer 因果链"],
-                ["responses", "只看作者回复"],
-                ["decision", "决定与 Meta-review"],
-              ] as const
-            ).map(([mode, label]) => (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={viewMode === mode}
-                className={viewMode === mode ? "is-active" : ""}
-                onClick={() => setViewMode(mode)}
-                key={mode}
-              >
-                {label}
-              </button>
             ))}
-          </div>
+            {filteredPapers.length === 0 && (
+              <div className="no-results">
+                <strong>没有匹配案例</strong>
+                <span>换个关键词，或清除会议和年份筛选。</span>
+              </div>
+            )}
+            {filteredPapers.length > 0 && (
+              <div className="pagination">
+                <button
+                  type="button"
+                  disabled={safePage === 0}
+                  onClick={() => setPage((value) => Math.max(0, value - 1))}
+                >
+                  ← 上一页
+                </button>
+                <span>{safePage + 1}</span>
+                <button
+                  type="button"
+                  disabled={safePage >= pageCount - 1}
+                  onClick={() =>
+                    setPage((value) => Math.min(pageCount - 1, value + 1))
+                  }
+                >
+                  下一页 →
+                </button>
+              </div>
+            )}
+          </nav>
 
-          {viewMode === "chain" && selectedPaper.threads.length > 0 && (
-            <ThreadSelector
-              threads={selectedPaper.threads}
-              selected={selectedThread}
-              onSelect={setSelectedThread}
+          <footer className="library-footer">
+            <span>
+              更新于 {formatDate(libraryMeta.generatedAt)}
+              <br />
+              {libraryMeta.conversationCount.toLocaleString()} 条 Reviewer 线程
+            </span>
+            <button type="button" onClick={() => setShowUpdate(true)}>
+              如何更新 <span aria-hidden="true">↗</span>
+            </button>
+          </footer>
+        </aside>
+
+        {showLibrary && (
+          <button
+            type="button"
+            className="library-backdrop"
+            aria-label="关闭案例库"
+            onClick={() => setShowLibrary(false)}
+          />
+        )}
+
+        <section id="reading-workspace" className="reading-workspace">
+          {detailLoading && (
+            <ReaderState
+              title="正在读取这篇的完整讨论"
+              body="只拉取当前论文的 Review、Author Response 与后续追问。"
             />
           )}
 
-          <div className="reading-grid">
-            <section className="reading-column">
-              {viewMode === "chain" && currentThread && (
-                <ThreadTimeline thread={currentThread} />
+          {!detailLoading && detailError && (
+            <ReaderState
+              title="这篇暂时没有读出来"
+              body={detailError}
+              action={
+                <div className="reader-state-actions">
+                  <button
+                    className="retry-button"
+                    type="button"
+                    onClick={() => setDetailAttempt((value) => value + 1)}
+                  >
+                    重新读取
+                  </button>
+                  <a
+                    className="retry-button"
+                    href={selectedSummary.source.originalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    打开原始 Forum ↗
+                  </a>
+                </div>
+              }
+            />
+          )}
+
+          {!detailLoading && !detailError && selectedPaper && (
+            <main id="paper-reader" className="paper-reader">
+              <div className="reader-toolbar">
+                <div className="material-badge">
+                  <span aria-hidden="true">01</span>
+                  {materialLabels[selectedPaper.materialType]}
+                </div>
+                <div className="toolbar-actions">
+                  <span className="source-badge">
+                    {sourceLabels[selectedPaper.source.type]}
+                  </span>
+                  <button
+                    type="button"
+                    className="toolbar-button"
+                    onClick={copyPaperLink}
+                  >
+                    {linkCopied ? "已复制" : "复制链接"}
+                  </button>
+                  <a
+                    href={selectedPaper.source.originalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    原始 Forum ↗
+                  </a>
+                </div>
+              </div>
+
+              <header className="paper-hero">
+                <div className="paper-meta-line">
+                  <span>{compactVenue(selectedPaper.venue)}</span>
+                  <span>{selectedPaper.year}</span>
+                  <span>Forum {selectedPaper.id}</span>
+                </div>
+                <h1>{selectedPaper.title}</h1>
+                {selectedPaper.titleKind !== "paper_title" && (
+                  <p className="metadata-note">
+                    当前数据源没有保存论文标题；这里展示 Reviewer
+                    的主题标题或 Forum ID。
+                  </p>
+                )}
+                {selectedPaper.authors.length > 0 && (
+                  <p className="authors">
+                    {selectedPaper.authors.join(" · ")}
+                  </p>
+                )}
+                <details className="abstract-disclosure">
+                  <summary>
+                    {selectedPaper.abstract ? "阅读论文摘要" : "摘要未收录"}
+                  </summary>
+                  <p>
+                    {selectedPaper.abstract ||
+                      "该条目的论文摘要未在当前源记录中保存；Review 与 Author Response 正文仍按原始记录呈现。"}
+                  </p>
+                </details>
+                {selectedPaper.topics.length > 0 && (
+                  <div className="topic-row">
+                    {selectedPaper.topics.map((topic) => (
+                      <span key={topic}>{topic}</span>
+                    ))}
+                  </div>
+                )}
+              </header>
+
+              <section className="score-journey" aria-label="评分变化">
+                <div className="score-stage">
+                  <span>初始评分</span>
+                  <ScoreDots
+                    scores={selectedPaper.scoreBefore}
+                    emptyLabel="未保存"
+                  />
+                </div>
+                <div className="journey-arrow">
+                  <span>
+                    {scoreLabel(
+                      delta,
+                      selectedPaper.scoreBefore.length,
+                      selectedPaper.scoreAfter.length,
+                    )}
+                  </span>
+                  <i aria-hidden="true">→</i>
+                </div>
+                <div className="score-stage">
+                  <span>最终评分</span>
+                  <ScoreDots
+                    scores={selectedPaper.scoreAfter}
+                    emptyLabel="未保存"
+                    final
+                  />
+                </div>
+                <div
+                  className={`decision-pill ${
+                    selectedPaper.accepted ? "is-accepted" : ""
+                  }`}
+                >
+                  <span>Final decision</span>
+                  <strong>{selectedPaper.decision}</strong>
+                </div>
+              </section>
+
+              <div className="view-tabs" role="tablist" aria-label="阅读模式">
+                {(
+                  [
+                    ["chain", "逐 Reviewer 因果链"],
+                    ["responses", "只看作者回复"],
+                    ["decision", "决定与 Meta-review"],
+                  ] as const
+                ).map(([mode, label]) => (
+                  <button
+                    id={`tab-${mode}`}
+                    type="button"
+                    role="tab"
+                    aria-controls={`panel-${mode}`}
+                    aria-selected={viewMode === mode}
+                    className={viewMode === mode ? "is-active" : ""}
+                    onClick={() => setViewMode(mode)}
+                    key={mode}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {viewMode === "chain" && selectedPaper.threads.length > 0 && (
+                <ThreadSelector
+                  threads={selectedPaper.threads}
+                  selected={selectedThread}
+                  onSelect={setSelectedThread}
+                />
               )}
-              {viewMode === "responses" && (
-                <AuthorResponses paper={selectedPaper} />
-              )}
-              {viewMode === "decision" && (
-                <DecisionView paper={selectedPaper} />
-              )}
-            </section>
-            {currentThread && (
-              <ReadingAside
-                paper={selectedPaper}
-                currentThread={currentThread}
-              />
-            )}
-          </div>
-        </main>
-      )}
+
+              <div
+                id={`panel-${viewMode}`}
+                className={`reading-grid ${
+                  viewMode === "chain" ? "" : "is-single"
+                }`}
+                role="tabpanel"
+                aria-labelledby={`tab-${viewMode}`}
+              >
+                <section className="reading-column">
+                  {viewMode === "chain" && currentThread && (
+                    <ThreadTimeline thread={currentThread} />
+                  )}
+                  {viewMode === "responses" && (
+                    <AuthorResponses paper={selectedPaper} />
+                  )}
+                  {viewMode === "decision" && (
+                    <DecisionView paper={selectedPaper} />
+                  )}
+                </section>
+                {viewMode === "chain" && currentThread && (
+                  <ReadingAside
+                    paper={selectedPaper}
+                    currentThread={currentThread}
+                  />
+                )}
+              </div>
+            </main>
+          )}
+        </section>
+      </div>
 
       {showUpdate && (
         <UpdateDialog

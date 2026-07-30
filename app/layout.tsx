@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const imageUrl = `${protocol}://${host}/og.png`;
   const title = "答辩录 · Rebuttal Reader";
   const description =
-    "把审稿意见、作者回复、Reviewer 追问和最终决定放回同一条因果链里。";
+    "搜索并阅读公开同行评议：把 Reviewer 质疑、作者回复、后续讨论、评分变化与最终决定放回同一条因果链。";
 
   return {
     title,
@@ -37,9 +37,9 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [
         {
           url: imageUrl,
-          width: 1731,
-          height: 909,
-          alt: "答辩录 Rebuttal Reader",
+          width: 1672,
+          height: 941,
+          alt: "答辩录 Rebuttal Reader：从质疑到决定的公开同行评议阅读器",
         },
       ],
     },
