@@ -1,0 +1,37 @@
+{
+  "ICLR.cc/2025/Conference": {
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal"],
+    "metaReview": ["Meta_Review"],
+    "decision": ["Decision"]
+  },
+  "ICLR.cc/2024/Conference": {
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal"],
+    "metaReview": ["Meta_Review"],
+    "decision": ["Decision"]
+  },
+  "ICLR.cc/2023/Conference": {
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Official_Comment", "Author_Response", "Rebuttal"],
+    "metaReview": ["Meta_Review"],
+    "decision": ["Decision"]
+  },
+  "TMLR": {
+    "submission": ["Submission"],
+    "review": ["Official_Review"],
+    "authorResponse": ["Author_Response", "Official_Comment"],
+    "metaReview": ["Meta_Review", "Recommendation"],
+    "decision": ["Decision"]
+  },
+  "_fallback": {
+    "submission": ["Submission", "Blind_Submission"],
+    "review": ["Official_Review", "Review"],
+    "authorResponse": ["Author_Response", "Official_Response", "Official_Comment", "Rebuttal"],
+    "metaReview": ["Meta_Review", "Meta_Review_Revision", "Recommendation"],
+    "decision": ["Decision"]
+  }
+}
