@@ -346,7 +346,6 @@ async function fetchPage(paperId: string, offset: number, attempt = 0) {
         Accept: "application/json",
         "User-Agent": "rebuttal-reader/0.4",
       },
-      cache: "force-cache",
     });
     if (
       (response.status === 408 ||

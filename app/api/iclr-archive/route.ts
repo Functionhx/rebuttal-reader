@@ -81,7 +81,6 @@ export async function POST(request: Request) {
         Range: `bytes=${start}-${end - 1}`,
         "User-Agent": "rebuttal-reader/0.4",
       },
-      cache: "force-cache",
     });
     if (response.status !== 206) {
       throw new Error(
