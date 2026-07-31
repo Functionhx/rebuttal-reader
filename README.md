@@ -2,6 +2,8 @@
 
 一个面向个人学习的 Rebuttal 阅读器：把初始 Review、Author Response、Reviewer Follow-up、Meta-review 和最终决定还原到同一条因果链中。
 
+在线版本：<https://rebuttal-reader.tart-morel-3407.chatgpt.site/>
+
 项目刻意采用“手动触发更新”：
 
 - 没有后台常驻爬虫；
@@ -124,3 +126,26 @@ npm test
 ```
 
 测试会检查站点构建、页面关键结构、公开权限闸门，以及 Review → Author Response → Reviewer Follow-up 的归一化结果。
+
+## 备份与独立迁移
+
+GitHub 仓库保存完整源码、轻量目录、数据更新脚本和构建配置，是站点的可恢复
+副本。`.cache/`、依赖目录、构建产物、环境变量和凭据均不会提交。
+
+从一台新机器恢复：
+
+```bash
+git clone https://github.com/Functionhx/rebuttal-reader.git
+cd rebuttal-reader
+npm ci
+npm test
+```
+
+当前生产构建输出为 Cloudflare Worker 兼容的 vinext 应用，且不依赖 D1 或 R2。
+如果现有托管地址不可用，可以在自己的 Cloudflare 账户中新建 Worker 项目，
+连接本仓库并使用 `npm run build` 作为构建命令，再绑定自己的域名。
+
+GitHub Pages 只能托管静态文件，不适合直接运行本项目：论文详情依赖
+`/api/re2`、`/api/reviewbench`、`/api/openreview-archive` 和
+`/api/iclr-archive` 四个按篇读取接口。仓库可以作为源码备份，但要得到完整的
+备用网址，仍需部署到支持服务端函数或 Edge Worker 的平台。
