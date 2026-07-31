@@ -2,7 +2,9 @@
 
 一个面向个人学习的 Rebuttal 阅读器：把初始 Review、Author Response、Reviewer Follow-up、Meta-review 和最终决定还原到同一条因果链中。
 
-在线版本：<https://rebuttal-reader.tart-morel-3407.chatgpt.site/>
+当前公开版本：<https://rebuttal-reader-functionhx.functionhx.chatgpt.site/>
+
+旧账号下的历史版本：<https://rebuttal-reader.tart-morel-3407.chatgpt.site/>
 
 项目刻意采用“手动触发更新”：
 
