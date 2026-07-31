@@ -65,6 +65,70 @@ Meta-review 如何权衡争议，最终为何接受或拒绝？
 - **分享单篇案例**：选中的论文写入 URL，可复制链接直接抵达同一阅读位置。
 - **轻量首屏**：浏览器先加载目录；Review 与回复正文只在点开论文后读取。
 
+## 粘贴 arXiv 链接 · 跨来源寻找公开 Rebuttal
+
+如果你已经有一篇想查的论文，可以直接粘贴 arXiv URL 或 ID，例如
+`https://arxiv.org/abs/2501.01234`、`https://arxiv.org/pdf/2501.01234`
+或 `2501.01234`。答辩录会针对这篇论文发起一次**按需、跨来源的发现流程**：
+
+```mermaid
+flowchart LR
+    A["arXiv URL / ID"] --> B["解析标题 · 作者 · DOI · 期刊信息"]
+    B --> C["本地案例库 / 公开 OpenReview"]
+    B --> D["Crossref 同行评议关系"]
+    B --> E["Nature Portfolio 论文页面"]
+    B --> F["GitHub 公共仓库"]
+    B --> G["可选 Brave 全网搜索"]
+    C --> H["已核验结果 + 明确标注的候选项"]
+    D --> H
+    E --> H
+    F --> H
+    G --> H
+```
+
+发现流程会组合几类性质不同、但都可以回到原始来源核对的证据：
+
+- **本地索引与 OpenReview**：把 arXiv 返回的论文元数据与答辩录已经收录的公开案例进行匹配，并保留 canonical Forum 链接。
+- **Crossref**：检查论文发表 DOI，以及出版社登记的 peer-review 记录与
+  `is-review-of` 关系；若来源提供 Author Comment 或 Referee Report，也会一并展示。
+- **Nature Portfolio 及其子刊**：当发表 DOI 以 `10.1038/` 开头时，直接检查这篇论文真实的
+  `nature.com` 页面是否挂有 **Transparent Peer Review** 或 **Peer Review File**
+  附件。覆盖范围跟随 DOI 与 canonical article page，而不是维护一份容易过期的期刊白名单，因此
+  Nature、Nature Communications、Communications 系列和其他参与透明评审的子刊都可以走同一条发现路径。
+- **GitHub**：检查公共仓库元数据；若服务端配置了 Token，再使用经过认证的代码搜索寻找
+  `rebuttal.pdf`、`author_response.md`、`response_to_reviewers.pdf` 等候选文件。
+- **Brave Search（可选）**：把发现范围扩展到公开项目主页、机构网站及其他同时提到论文和
+  rebuttal / response letter 的已索引页面。
+
+它是一个**按需发现工具，不是后台常驻爬虫**。Nature 的同行评议 PDF 只链接到出版社的
+canonical page，不会被镜像进本仓库；GitHub 与网页搜索命中项在论文身份和公开权利得到核验前，
+都会明确标成“候选”。同样，“没有找到”只表示本次查询的公开来源没有返回可靠匹配，**不代表
+这篇论文一定不存在 Rebuttal**。
+
+### 可选的发现服务凭据
+
+即使没有任何私有凭据，基础发现仍然可用：arXiv 元数据、本地 / OpenReview 索引、Crossref，
+以及符合条件的 Nature Portfolio 页面都可以按需检查。下面两个仅由服务端读取的可选变量，
+分别用于提升 GitHub 覆盖率和启用更广的网页搜索：
+
+```bash
+# 可选：使用只读 Token 进行 GitHub 认证代码搜索
+export GITHUB_TOKEN="your-read-only-token-here"
+
+# 可选：通过 Brave Search 发现公开网页
+export BRAVE_SEARCH_API_KEY="your-brave-search-api-key-here"
+
+npm run dev
+```
+
+这些值必须留在服务端：不要提交到 Git，不要写入浏览器存储，也不要通过 `NEXT_PUBLIC_`
+变量暴露。公开部署即使没有这两个变量也能工作；它只会把 GitHub 代码搜索或 Brave Search
+标记为不可用，并继续返回其他来源能够安全取得的结果。
+
+答辩录通过 arXiv API 使用论文元数据：*Thank you to arXiv for use of its open
+access interoperability.* arXiv 上的记录仍以 arXiv 为 canonical source；使用这些
+元数据不代表 arXiv 或 Cornell University 对本项目提供背书。
+
 ## 可选 DeepSeek 助读 · 可解释 RAG
 
 答辩录提供一个可选的本地 AI 助手，专注于三件事：
@@ -250,8 +314,10 @@ OpenReview 批量接口可能要求已验证会话。更新脚本可读取本地
 app/
 ├── reader-app.tsx                 # 搜索、阅读器与线程交互
 ├── ai-assistant.tsx               # 可解释 RAG 与 DeepSeek 抽屉
+├── discovery-dialog.tsx           # arXiv 跨来源发现界面
 └── api/
     ├── assistant/                  # 仅限本地的 DeepSeek 适配器
+    ├── discovery/                  # arXiv、Crossref、Nature、GitHub 与网页发现
     ├── re2/                       # Re² 安全字节范围读取
     ├── reviewbench/               # Parquet 单行读取与规范化
     ├── openreview-archive/        # 公共 Note 过滤读取
@@ -273,6 +339,7 @@ scripts/
 
 config/venues.json                 # 不同 venue 的 invitation 适配 registry
 lib/
+├── discovery.ts                   # 输入校验、论文匹配与来源发现辅助函数
 ├── rag.ts                         # 确定性召回与证据长度控制
 └── types.ts                       # 统一数据模型与来源类型
 tests/                             # 构建、API 安全、召回与规范化测试
@@ -295,7 +362,7 @@ GitHub 仓库保存完整源码、轻量目录、更新脚本和构建配置，�
 当前构建产物是 Cloudflare Worker 兼容的 vinext 应用，不依赖 D1 或 R2。如果现有托管地址不可用，可以把本仓库连接到支持服务端函数或 Edge Worker 的平台，使用 `npm run build` 构建，再切换自定义域名。
 
 > [!IMPORTANT]
-> GitHub Pages 只能托管静态文件，无法直接运行本项目的四个按篇读取 API。仓库可以完整备份项目，但备用网址应部署到支持服务端函数的环境。
+> GitHub Pages 只能托管静态文件，无法直接运行本项目的服务端 API。仓库可以完整备份项目，但备用网址应部署到支持服务端函数的环境。
 
 ## 设计取向
 

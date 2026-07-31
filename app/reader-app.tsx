@@ -17,6 +17,7 @@ import type {
   ThreadMessage,
 } from "@/lib/types";
 import { AiAssistant } from "./ai-assistant";
+import { DiscoveryDialog } from "./discovery-dialog";
 
 type ViewMode = "chain" | "responses" | "decision";
 
@@ -853,6 +854,7 @@ export function ReaderApp({
   const [viewMode, setViewMode] = useState<ViewMode>("chain");
   const [showUpdate, setShowUpdate] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
+  const [showDiscovery, setShowDiscovery] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const aiTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1104,6 +1106,10 @@ export function ReaderApp({
     window.requestAnimationFrame(() => aiTriggerRef.current?.focus());
   }, []);
 
+  const closeDiscovery = useCallback(() => {
+    setShowDiscovery(false);
+  }, []);
+
   const copyPaperLink = useCallback(async () => {
     if (typeof window === "undefined") return;
     const nextUrl = new URL(window.location.href);
@@ -1161,6 +1167,16 @@ export function ReaderApp({
           </span>
           <button
             type="button"
+            className="header-action header-discovery"
+            onClick={() => {
+              setShowAssistant(false);
+              setShowDiscovery(true);
+            }}
+          >
+            用 arXiv 找 Rebuttal
+          </button>
+          <button
+            type="button"
             className="header-action"
             onClick={() => setShowUpdate(true)}
           >
@@ -1202,6 +1218,20 @@ export function ReaderApp({
           <p className="library-description">
             搜索公开 Review、作者回复与最终决定。正文仅在点开后读取。
           </p>
+          <button
+            type="button"
+            className="library-discovery-button"
+            onClick={() => {
+              setShowAssistant(false);
+              setShowDiscovery(true);
+            }}
+          >
+            <span>
+              <strong>有 arXiv 地址？</strong>
+              <small>跨 Nature、GitHub 与公开索引查找</small>
+            </span>
+            <b aria-hidden="true">→</b>
+          </button>
 
           <label className="search-box">
             <span aria-hidden="true">⌕</span>
@@ -1397,7 +1427,10 @@ export function ReaderApp({
                     aria-haspopup="dialog"
                     aria-controls="ai-assistant"
                     aria-expanded={showAssistant}
-                    onClick={() => setShowAssistant(true)}
+                    onClick={() => {
+                      setShowDiscovery(false);
+                      setShowAssistant(true);
+                    }}
                   >
                     <span aria-hidden="true">✦</span> AI 共读
                   </button>
@@ -1585,6 +1618,12 @@ export function ReaderApp({
           onClose={closeAssistant}
         />
       )}
+      <DiscoveryDialog
+        open={showDiscovery}
+        papers={papers}
+        onOpenPaper={choosePaper}
+        onClose={closeDiscovery}
+      />
     </div>
   );
 }

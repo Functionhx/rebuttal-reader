@@ -69,6 +69,84 @@ The result is not a folder of rebuttal files. It is an **evidence trail from scr
 - **Shareable case URLs** — the selected paper is encoded in the URL, so a copied link opens the same reading position.
 - **A lightweight first load** — the browser receives an index first; review and response bodies load only after a paper is opened.
 
+## Paste an arXiv link · Discover the public review trail
+
+Already have a paper in mind? Paste an arXiv URL or ID—such as
+`https://arxiv.org/abs/2501.01234`, `https://arxiv.org/pdf/2501.01234`, or
+`2501.01234`—and Rebuttal Reader performs an **on-demand, cross-source
+discovery pass** for that paper:
+
+```mermaid
+flowchart LR
+    A["arXiv URL / ID"] --> B["Resolve title · authors · DOI · journal reference"]
+    B --> C["Local library / public OpenReview"]
+    B --> D["Crossref peer-review relations"]
+    B --> E["Nature Portfolio article page"]
+    B --> F["GitHub public repositories"]
+    B --> G["Optional Brave web search"]
+    C --> H["Verified matches + clearly labeled candidates"]
+    D --> H
+    E --> H
+    F --> H
+    G --> H
+```
+
+The discovery route deliberately combines several different kinds of evidence:
+
+- **Local index and OpenReview** — compare the resolved paper metadata with the
+  public cases already indexed by Rebuttal Reader and retain canonical Forum
+  links.
+- **Crossref** — inspect the published DOI and any registered peer-review
+  records or `is-review-of` relationships, including author comments and
+  referee reports when publishers deposit them.
+- **Nature Portfolio, including subjournals** — when the published DOI begins
+  with `10.1038/`, inspect that paper’s actual `nature.com` article page for a
+  real **Transparent Peer Review** or **Peer Review File** attachment. Coverage
+  follows the DOI and canonical page instead of a brittle journal-name
+  whitelist, so Nature, Nature Communications, Communications journals, and
+  other participating subjournals can be discovered through the same path.
+- **GitHub** — inspect public repository metadata and, when a server-side token
+  is configured, use authenticated code search for files such as
+  `rebuttal.pdf`, `author_response.md`, or `response_to_reviewers.pdf`.
+- **Brave Search, optional** — broaden discovery to public project pages,
+  institutional sites, and other indexed pages that mention the resolved paper
+  and a rebuttal or response letter.
+
+This is a **discovery tool, not an always-on crawler**. Nature peer-review PDFs
+are linked from their canonical publisher page and are not mirrored into this
+repository. GitHub and web-search results are labeled as candidates until their
+paper identity and publication rights can be verified. Likewise, “not found”
+means only that the currently queried public sources did not return a reliable
+match—it does **not** prove that no rebuttal exists.
+
+### Optional discovery credentials
+
+Basic discovery still works without private credentials: arXiv metadata,
+the local/OpenReview index, Crossref, and eligible Nature Portfolio pages can
+all be checked on demand. Optional server-only credentials improve GitHub
+coverage and enable broader web search:
+
+```bash
+# Optional: authenticated GitHub code search with a read-only token
+export GITHUB_TOKEN="your-read-only-token-here"
+
+# Optional: public-web discovery through Brave Search
+export BRAVE_SEARCH_API_KEY="your-brave-search-api-key-here"
+
+npm run dev
+```
+
+These values must remain server-side: never commit them, place them in browser
+storage, or expose them through a `NEXT_PUBLIC_` variable. A public deployment
+without either value remains useful; it simply reports GitHub code search or
+Brave Search as unavailable while returning results from the sources it can
+query safely.
+
+Thank you to arXiv for use of its open access interoperability. Rebuttal Reader
+uses metadata supplied through the arXiv API; arXiv records remain canonical at
+arXiv, and use of the metadata does not imply endorsement by arXiv or Cornell
+University.
+
 ## Optional DeepSeek assistant · Explainable RAG
 
 Rebuttal Reader includes an optional local AI assistant for three focused tasks:
@@ -252,8 +330,10 @@ OpenReview’s batch API may require a verified session. The updater can read a 
 app/
 ├── reader-app.tsx                 # search, reader, and thread interaction
 ├── ai-assistant.tsx               # explainable RAG and DeepSeek drawer
+├── discovery-dialog.tsx           # arXiv cross-source discovery interface
 └── api/
     ├── assistant/                  # local-only DeepSeek adapter
+    ├── discovery/                  # arXiv, Crossref, Nature, GitHub, and web discovery
     ├── re2/                       # safe Re² byte-range reads
     ├── reviewbench/               # Parquet row lookup and normalization
     ├── openreview-archive/        # filtered reads from public Notes
@@ -275,6 +355,7 @@ scripts/
 
 config/venues.json                 # invitation registry for different venues
 lib/
+├── discovery.ts                   # validation, matching, and source discovery helpers
 ├── rag.ts                         # deterministic retrieval and evidence bounds
 └── types.ts                       # normalized model and source types
 tests/                             # build, API safety, retrieval, and normalization tests
@@ -297,7 +378,7 @@ This GitHub repository is the independent, recoverable copy: it contains the com
 The current artifact is a vinext application compatible with Cloudflare Workers and does not depend on D1 or R2. If the present hosting URL becomes unavailable, the repository can be connected to another platform that supports server-side functions or Edge Workers, built with `npm run build`, and placed behind a custom domain.
 
 > [!IMPORTANT]
-> GitHub Pages can host static files only; it cannot run the four per-paper API routes used by this project. The repository is a complete backup, but a fallback deployment still needs an environment with server-side functions.
+> GitHub Pages can host static files only; it cannot run the server-side API routes used by this project. The repository is a complete backup, but a fallback deployment still needs an environment with server-side functions.
 
 ## Design principles
 
