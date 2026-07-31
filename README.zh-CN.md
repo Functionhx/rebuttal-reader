@@ -25,14 +25,16 @@
 
 <div align="center">
 
-| **62,532** | **286,659** | **2018–2026** | **按需读取** |
+| **129,438** | **273,008** | **2015–2026** | **按需读取** |
 |:---:|:---:|:---:|:---:|
-| 去重后的公开案例 | Reviewer 线程 | 当前索引年份 | 点开一篇，才读取一篇 |
+| 公开索引记录 | 已结构化 Reviewer 线程 | 当前索引年份 | 点开一篇，才解析一篇或一个文件 |
 
 </div>
 
 > [!NOTE]
-> **Public Beta.** 当前数字来自仓库内最新生成的轻量索引。数据采用手动触发更新；不同数据源存在交集，页面展示的是按 Forum ID 合并后的数量。
+> **Public Beta.** 当前数字来自仓库内最新生成的轻量索引，数据采用手动触发更新。
+> OpenReview 记录按 Forum ID 去重；Nature 记录使用 PMCID。若同一项研究也经历过会议投稿，
+> 它会作为独立的期刊同行评议档案保留。
 
 ## 它解决什么问题
 
@@ -60,6 +62,8 @@ Meta-review 如何权衡争议，最终为何接受或拒绝？
 - **只看作者回复**：汇总全部 Author Response，快速学习回复结构与表达方式。
 - **决定与 Meta-review**：单独查看评分记录、最终决定及领域主席的判断依据。
 - **可搜索的案例库**：按标题、主题、会议、年份或 Forum ID 检索与筛选。
+- **可浏览的 Nature Portfolio 目录**：按标题、期刊、年份、DOI 或 PMCID
+  检索透明同行评议记录，再按需打开经过核验的官方文件，不镜像 PDF。
 - **评分变化可视化**：区分初评和终评；源数据没有保存的值明确标为缺失，不做猜测。
 - **完整来源说明**：每篇保留原始 Forum、来源类型、许可与数据边界。
 - **分享单篇案例**：选中的论文写入 URL，可复制链接直接抵达同一阅读位置。
@@ -91,23 +95,25 @@ flowchart LR
 - **本地索引与 OpenReview**：把 arXiv 返回的论文元数据与答辩录已经收录的公开案例进行匹配，并保留 canonical Forum 链接。
 - **Crossref**：检查论文发表 DOI，以及出版社登记的 peer-review 记录与
   `is-review-of` 关系；若来源提供 Author Comment 或 Referee Report，也会一并展示。
-- **Nature Portfolio 及其子刊**：当发表 DOI 以 `10.1038/` 开头时，直接检查这篇论文真实的
-  `nature.com` 页面是否挂有 **Transparent Peer Review** 或 **Peer Review File**
-  附件。覆盖范围跟随 DOI 与 canonical article page，而不是维护一份容易过期的期刊白名单，因此
-  Nature、Nature Communications、Communications 系列和其他参与透明评审的子刊都可以走同一条发现路径。
+- **Nature Portfolio 及其子刊**：先与通过
+  [Europe PMC REST API](https://europepmc.org/RestfulWebService) 生成的本地
+  Nature 目录进行匹配；当发表 DOI 以 `10.1038/` 开头时，按需发现流程还可检查
+  canonical 出版社页面是否挂有 **Transparent Peer Review** 或
+  **Peer Review File** 附件。
 - **GitHub**：检查公共仓库元数据；若服务端配置了 Token，再使用经过认证的代码搜索寻找
   `rebuttal.pdf`、`author_response.md`、`response_to_reviewers.pdf` 等候选文件。
 - **Brave Search（可选）**：把发现范围扩展到公开项目主页、机构网站及其他同时提到论文和
   rebuttal / response letter 的已索引页面。
 
-它是一个**按需发现工具，不是后台常驻爬虫**。Nature 的同行评议 PDF 只链接到出版社的
-canonical page，不会被镜像进本仓库；GitHub 与网页搜索命中项在论文身份和公开权利得到核验前，
-都会明确标成“候选”。同样，“没有找到”只表示本次查询的公开来源没有返回可靠匹配，**不代表
-这篇论文一定不存在 Rebuttal**。
+它是一个**元数据索引与按需发现工具，不是后台常驻爬虫**。Nature 记录现在会直接进入左侧
+案例库及期刊 / 年份筛选；同行评议 PDF 仍保留在 Europe PMC 或出版社，只有读者点开某条记录后
+才会定位。GitHub 与网页搜索命中项在论文身份和公开权利得到核验前，都会明确标成“候选”。
+同样，“没有找到”只表示本次查询的公开来源没有返回可靠匹配，**不代表这篇论文一定不存在
+Rebuttal**。
 
-Nature 结果目前只显示在单篇跨来源查找窗口中，不会进入左侧以 OpenReview 来源为主的案例库，
-也不会出现在其 Venue / 年份筛选里。网站会链接 Nature 的合并同行评议文件，但尚未把其中的
-Decision Letter、Reviewer Report 与 Author Response 拆成站内因果时间线。
+Nature 的透明同行评议文件可能把 Decision Letter、Reviewer Report、作者 Rebuttal
+以及多轮修改合并在同一个 PDF 中。在文档尚未完成角色识别和轮次切分时，答辩录只把它展示为
+一份公开档案文件，不会臆造站内对话时间线。
 
 ### 可选的发现服务凭据
 
@@ -145,7 +151,7 @@ access interoperability.* arXiv 上的记录仍以 arXiv 为 canonical source；
 
 ```mermaid
 flowchart LR
-    A["当前论文 / 写作问题"] --> B["在 62,532 条本地摘要中召回"]
+    A["当前论文 / 写作问题"] --> B["在已索引摘要中召回"]
     B --> C["标题词 · 主题 · 会议 · 年份"]
     C --> D["只读取最相关的公开案例"]
     D --> E["有长度上限的证据片段"]
@@ -212,6 +218,7 @@ PDF 或 Markdown。项目会保留来源和许可信息，并把不同材料类�
 | [ReviewBench](https://huggingface.co/datasets/Samarth0710/reviewbench) | 5,536 篇 · 19,889 线程 | NeurIPS、ICLR、ICML、TMLR、EMNLP、CoRL、COLM | 远程 Parquet 行定位 |
 | [ICLR public archive](https://huggingface.co/datasets/MlouisBE/iclr-rebuttal-analysis) | 14,708 篇 · 57,267 线程 | ICLR 2026 公共讨论 | 远程 JSON 精确字节范围 |
 | [OpenReview API](https://openreview.net/) | 手动增量 | 指定 Forum 或 registry venue | 公开权限检查后按篇保存 |
+| [Europe PMC](https://europepmc.org/RestfulWebService) · Nature Portfolio | 66,906 条 · 0 条伪造线程 | 11 本已配置期刊，2015–2026 | 按年份切分元数据，点击后定位官方同行评议文件 |
 
 ### 为什么有时显示 Reviewer 的主题标题或 Forum ID？
 
@@ -236,7 +243,13 @@ flowchart LR
     E -->|"只返回这一篇"| F["统一 PaperRecord<br/>线程 · 评分 · 决定 · 来源"]
 ```
 
-历史目录按年份分片，当前全部目录原始约 **57.4 MB**，gzip 估算约 **6.3 MB**，最大单片小于 **9 MB**。正文由源站和 CDN 按需读取并缓存；`.cache/` 只服务于本地生成流程，不提交、不部署，删除后可重新生成。
+历史目录与 Nature 目录都按年份分片。Nature 分片只保存标题、期刊、年份、DOI、PMCID、
+来源和远程文件指针等元数据，绝不保存同行评议 PDF。完整讨论正文与期刊文件都在点开单篇后，
+从公开源站按需读取或定位；`.cache/` 只服务于本地生成流程，不提交、不部署，删除后可重新生成。
+
+当前 Nature 目录约 **73 MiB 原始 JSON / 10.8 MB gzip**，分成 14 个文件，
+每个分片均小于 **10 MiB**；全部公开目录合计约 **131 MiB 原始 JSON / 17.1 MB gzip**。
+前端采用有限并发逐片合并，因此某个年份较慢时，已经加载的目录仍可先行浏览。
 
 ## 公开性与数据边界
 
@@ -246,6 +259,8 @@ flowchart LR
 - 不绕过登录，不读取 CMT、HotCRP、PaperPlaza 等封闭系统中的审稿材料。
 - 不把“会议使用 OpenReview”误判为“该会议公开评审”。
 - 不镜像论文 PDF；评论、回复与元数据分别保留原始来源和许可说明。
+- Europe PMC 记录遵循每篇文章各自的开放许可；索引仅保存书目元数据，Nature
+  合并同行评议 PDF 始终留在官方来源。
 - 不猜测缺失评分、Meta-review、作者信息或论文标题。
 - 派生数据与 OpenReview 原始来源在界面中分别标识，便于回到 canonical source 核验。
 - 更新所需凭据只从本地环境变量临时读取，永远不应写入仓库。
@@ -293,9 +308,20 @@ npm run update:openreview-archive
 # ICLR 2026 公共讨论
 npm run update:iclr-archive
 
+# Europe PMC / Nature Portfolio 元数据目录
+npm run update:nature
+
+# 重新构建已配置期刊的全部年份，而不是默认增量刷新
+npm run update:nature -- --full --all-years
+
 # 大文件扫描中断后，从断点继续
 npm run update:iclr-archive -- --resume
 ```
+
+Nature 更新器通过 Europe PMC cursor 分页，只生成有大小边界的年份元数据分片，
+不会下载 PDF 或论文正文。完成一次全量构建后，普通的 `npm run update:nature`
+会自动切换为增量模式，并以 Europe PMC 全文入库时间保留 45 天重叠窗口；
+这样既能补到延迟入库的记录，也不会在刷新时丢掉原有的全年份覆盖。
 
 ### 从 OpenReview 增量导入
 
@@ -322,6 +348,7 @@ app/
 └── api/
     ├── assistant/                  # 仅限本地的 DeepSeek 适配器
     ├── discovery/                  # arXiv、Crossref、Nature、GitHub 与网页发现
+    ├── nature/                     # Europe PMC 同行评议文件安全定位
     ├── re2/                       # Re² 安全字节范围读取
     ├── reviewbench/               # Parquet 单行读取与规范化
     ├── openreview-archive/        # 公共 Note 过滤读取
@@ -332,6 +359,7 @@ public/data/
 ├── reviewbench/index.json         # 多会议行指针
 ├── openreview-archive/            # 按年份切分的 Forum 目录
 ├── iclr-archive/index.json        # 精确 JSON 字节指针
+├── nature/                        # 仅含 Europe PMC 元数据的年份分片
 └── openreview/                    # OpenReview API 增量目录与按篇详情
 
 scripts/
@@ -339,12 +367,16 @@ scripts/
 ├── update-reviewbench.mjs
 ├── update-openreview-archive.mjs
 ├── update-iclr-archive.mjs
+├── update-nature.mjs
 └── update-openreview.mjs
 
-config/venues.json                 # 不同 venue 的 invitation 适配 registry
+config/
+├── venues.json                    # OpenReview venue invitation registry
+└── nature-journals.json           # Europe PMC Nature 期刊 registry
 lib/
 ├── discovery.ts                   # 输入校验、论文匹配与来源发现辅助函数
 ├── library-filters.ts             # 以年份为主的 Venue 联动筛选
+├── nature.ts                      # PMCID 校验与同行评议文件解析
 ├── rag.ts                         # 确定性召回与证据长度控制
 └── types.ts                       # 统一数据模型与来源类型
 tests/                             # 构建、API 安全、召回与规范化测试

@@ -29,14 +29,18 @@ into a coherent trail of arguments, evidence, and outcomes.
 
 <div align="center">
 
-| **62,532** | **286,659** | **2018–2026** | **On demand** |
+| **129,438** | **273,008** | **2015–2026** | **On demand** |
 |:---:|:---:|:---:|:---:|
-| deduplicated public cases | reviewer threads | years currently indexed | one paper loaded at a time |
+| indexed public records | structured reviewer threads | years currently indexed | one paper or file resolved at a time |
 
 </div>
 
 > [!NOTE]
-> **Public Beta.** These figures come from the latest lightweight indexes generated in this repository. Updates are triggered manually. Because sources overlap, the live total is deduplicated by Forum ID rather than calculated by adding the source counts below.
+> **Public Beta.** These figures come from the latest lightweight indexes
+> generated in this repository. Updates are triggered manually. OpenReview
+> records are deduplicated by Forum ID; Nature records use PMCID and remain a
+> separate published peer-review artifact when the same research also appeared
+> in a conference workflow.
 
 ## The final PDF is only half the story
 
@@ -64,6 +68,9 @@ The result is not a folder of rebuttal files. It is an **evidence trail from scr
 - **Author-response view** — collect every Author Response in one place to study structure, tone, and evidence.
 - **Decision and meta-review view** — inspect score records, the final outcome, and the area chair’s or editor’s reasoning separately.
 - **A searchable case library** — filter by title, topic, venue, year, or Forum ID.
+- **A browsable Nature Portfolio catalog** — search transparent peer-review
+  records by title, journal, year, DOI, or PMCID, then open the verified
+  official file without mirroring its PDF.
 - **Honest score timelines** — distinguish initial and final ratings; values absent from the source stay absent.
 - **Traceable provenance** — every case retains its source type, original Forum, license information, and known data boundaries.
 - **Shareable case URLs** — the selected paper is encoded in the URL, so a copied link opens the same reading position.
@@ -99,12 +106,12 @@ The discovery route deliberately combines several different kinds of evidence:
 - **Crossref** — inspect the published DOI and any registered peer-review
   records or `is-review-of` relationships, including author comments and
   referee reports when publishers deposit them.
-- **Nature Portfolio, including subjournals** — when the published DOI begins
-  with `10.1038/`, inspect that paper’s actual `nature.com` article page for a
-  real **Transparent Peer Review** or **Peer Review File** attachment. Coverage
-  follows the DOI and canonical page instead of a brittle journal-name
-  whitelist, so Nature, Nature Communications, Communications journals, and
-  other participating subjournals can be discovered through the same path.
+- **Nature Portfolio, including subjournals** — first compare the paper with
+  the local Nature catalog generated from the
+  [Europe PMC REST API](https://europepmc.org/RestfulWebService). When a DOI
+  begins with `10.1038/`, the on-demand fallback can also inspect its canonical
+  publisher page for a **Transparent Peer Review** or **Peer Review File**
+  attachment.
 - **GitHub** — inspect public repository metadata and, when a server-side token
   is configured, use authenticated code search for files such as
   `rebuttal.pdf`, `author_response.md`, or `response_to_reviewers.pdf`.
@@ -112,18 +119,19 @@ The discovery route deliberately combines several different kinds of evidence:
   institutional sites, and other indexed pages that mention the resolved paper
   and a rebuttal or response letter.
 
-This is a **discovery tool, not an always-on crawler**. Nature peer-review PDFs
-are linked from their canonical publisher page and are not mirrored into this
-repository. GitHub and web-search results are labeled as candidates until their
-paper identity and publication rights can be verified. Likewise, “not found”
-means only that the currently queried public sources did not return a reliable
-match—it does **not** prove that no rebuttal exists.
+This is a **metadata index and discovery tool, not an always-on crawler**.
+Nature records now appear directly in the left-hand library and its journal /
+year filters. Their peer-review PDFs remain on Europe PMC or the publisher and
+are resolved only after a reader opens one record. GitHub and web-search results
+are labeled as candidates until their paper identity and publication rights can
+be verified. Likewise, “not found” means only that the currently queried public
+sources did not return a reliable match—it does **not** prove that no rebuttal
+exists.
 
-Nature results are currently returned inside the per-paper discovery dialog;
-they are not inserted into the left-hand OpenReview-oriented archive or its
-venue/year filters. The site links the combined peer-review file but does not
-yet split its internal decision letters, reviewer reports, and author responses
-into a native Rebuttal Reader timeline.
+Nature’s transparent peer-review file may combine decision letters, reviewer
+reports, author rebuttal letters, and several revision rounds. Until that PDF
+has been parsed and its roles verified, Rebuttal Reader presents it as one
+public archive file rather than inventing a native conversation timeline.
 
 ### Optional discovery credentials
 
@@ -165,7 +173,7 @@ The first version uses a lightweight, inspectable RAG pipeline rather than a hid
 
 ```mermaid
 flowchart LR
-    A["Current paper / writing question"] --> B["Local retrieval over 62,532 summaries"]
+    A["Current paper / writing question"] --> B["Local retrieval over indexed summaries"]
     B --> C["Title tokens · topics · venue · year"]
     C --> D["Fetch only the top matching public cases"]
     D --> E["Bounded evidence excerpts"]
@@ -228,6 +236,7 @@ Rebuttal Reader normalizes several **public sources** into one `PaperRecord` mod
 | [ReviewBench](https://huggingface.co/datasets/Samarth0710/reviewbench) | 5,536 papers · 19,889 threads | NeurIPS, ICLR, ICML, TMLR, EMNLP, CoRL, and COLM | remote Parquet row lookup |
 | [ICLR public archive](https://huggingface.co/datasets/MlouisBE/iclr-rebuttal-analysis) | 14,708 papers · 57,267 threads | public ICLR 2026 discussions | exact remote JSON byte ranges |
 | [OpenReview API](https://openreview.net/) | manual increments | selected Forums or registry venues | per-paper storage after a public-access check |
+| [Europe PMC](https://europepmc.org/RestfulWebService) · Nature Portfolio | 66,906 records · 0 fabricated threads | 11 configured journals, 2015–2026 | year-sharded metadata; official peer-review file resolved on click |
 
 ### Why do some records show a reviewer subject or Forum ID instead of a paper title?
 
@@ -254,7 +263,18 @@ flowchart LR
     E -->|"Return only this paper"| F["Normalized PaperRecord<br/>threads · scores · decision · source"]
 ```
 
-Historical indexes are sharded by year. The complete current index is about **57.4 MB** uncompressed, approximately **6.3 MB** gzipped, with every individual shard below **9 MB**. Full discussion bodies are fetched on demand from source hosts and CDNs, then cached. The local `.cache/` directory exists only for index generation; it is neither committed nor deployed and can be regenerated after deletion.
+Historical and Nature indexes are sharded by year. Nature shards contain
+metadata only—title, journal, year, DOI, PMCID, provenance, and a remote-file
+pointer—never the peer-review PDF. Full discussion bodies and journal files are
+fetched or resolved on demand from public source hosts. The local `.cache/`
+directory exists only for index generation; it is neither committed nor
+deployed and can be regenerated after deletion.
+
+The current Nature catalog is about **73 MiB raw / 10.8 MB gzipped** across 14
+files; every shard is below **10 MiB**. All committed public indexes together
+are about **131 MiB raw / 17.1 MB gzipped**. The reader merges shards
+progressively with bounded concurrency, so one slow year does not block the
+already loaded catalog.
 
 ## Public access and privacy boundaries
 
@@ -264,6 +284,9 @@ The project follows one rule: **only publicly verifiable material enters the ind
 - It never bypasses authentication or reads review material from closed CMT, HotCRP, PaperPlaza, or similar workflows.
 - A venue’s use of OpenReview is never treated as proof that its reviews are public.
 - Paper PDFs are not mirrored. Comments, responses, and metadata retain separate source and license information.
+- Europe PMC records are used under their article-specific open-access terms;
+  the index stores bibliographic metadata while the combined Nature
+  peer-review PDF remains at its official source.
 - Missing scores, meta-reviews, author details, and paper titles are never guessed.
 - Derived datasets and canonical OpenReview sources are labeled separately in the interface.
 - Credentials used for updates are read temporarily from local environment variables and must never be written to the repository.
@@ -311,9 +334,21 @@ npm run update:openreview-archive
 # ICLR 2026 public discussions
 npm run update:iclr-archive
 
+# Europe PMC / Nature Portfolio metadata catalog
+npm run update:nature
+
+# Rebuild all configured years instead of the default incremental refresh
+npm run update:nature -- --full --all-years
+
 # Resume an interrupted large-file scan
 npm run update:iclr-archive -- --resume
 ```
+
+The Nature updater uses cursor pagination over Europe PMC, stores no PDF or
+article body, and writes bounded year shards. After a full build, the ordinary
+`npm run update:nature` command becomes incremental: it rechecks a 45-day
+overlap of Europe PMC full-text deposit dates so delayed deposits are not
+missed while preserving the index’s existing all-year coverage.
 
 ### Import incrementally from OpenReview
 
@@ -340,6 +375,7 @@ app/
 └── api/
     ├── assistant/                  # local-only DeepSeek adapter
     ├── discovery/                  # arXiv, Crossref, Nature, GitHub, and web discovery
+    ├── nature/                     # safe Europe PMC peer-review-file resolver
     ├── re2/                       # safe Re² byte-range reads
     ├── reviewbench/               # Parquet row lookup and normalization
     ├── openreview-archive/        # filtered reads from public Notes
@@ -350,6 +386,7 @@ public/data/
 ├── reviewbench/index.json         # multi-venue row pointers
 ├── openreview-archive/            # year-sharded Forum indexes
 ├── iclr-archive/index.json        # exact JSON byte pointers
+├── nature/                        # year-sharded Europe PMC metadata only
 └── openreview/                    # incremental OpenReview indexes and case details
 
 scripts/
@@ -357,12 +394,16 @@ scripts/
 ├── update-reviewbench.mjs
 ├── update-openreview-archive.mjs
 ├── update-iclr-archive.mjs
+├── update-nature.mjs
 └── update-openreview.mjs
 
-config/venues.json                 # invitation registry for different venues
+config/
+├── venues.json                    # invitation registry for OpenReview venues
+└── nature-journals.json           # Europe PMC Nature journal registry
 lib/
 ├── discovery.ts                   # validation, matching, and source discovery helpers
 ├── library-filters.ts             # year-authoritative venue filter facets
+├── nature.ts                      # strict PMCID and peer-review-file parsing
 ├── rag.ts                         # deterministic retrieval and evidence bounds
 └── types.ts                       # normalized model and source types
 tests/                             # build, API safety, retrieval, and normalization tests

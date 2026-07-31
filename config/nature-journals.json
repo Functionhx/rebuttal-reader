@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "defaultFromYear": 2023,
+  "incrementalOverlapDays": 45,
+  "requestDelayMs": 150,
+  "pageSize": 1000,
+  "journals": [
+    {
+      "id": "nature-communications",
+      "name": "Nature Communications",
+      "europePmcJournal": "Nat Commun"
+    },
+    {
+      "id": "communications-biology",
+      "name": "Communications Biology",
+      "europePmcJournal": "Commun Biol"
+    },
+    {
+      "id": "communications-chemistry",
+      "name": "Communications Chemistry",
+      "europePmcJournal": "Commun Chem"
+    },
+    {
+      "id": "communications-physics",
+      "name": "Communications Physics",
+      "europePmcJournal": "Commun Phys"
+    },
+    {
+      "id": "communications-earth-environment",
+      "name": "Communications Earth & Environment",
+      "europePmcJournal": "Commun Earth Environ"
+    },
+    {
+      "id": "communications-engineering",
+      "name": "Communications Engineering",
+      "europePmcJournal": "Commun Eng"
+    },
+    {
+      "id": "communications-materials",
+      "name": "Communications Materials",
+      "europePmcJournal": "Commun Mater"
+    },
+    {
+      "id": "communications-medicine",
+      "name": "Communications Medicine",
+      "europePmcJournal": "Commun Med (Lond)"
+    },
+    {
+      "id": "communications-psychology",
+      "name": "Communications Psychology",
+      "europePmcJournal": "Commun Psychol"
+    },
+    {
+      "id": "nature",
+      "name": "Nature",
+      "europePmcJournal": "Nature"
+    },
+    {
+      "id": "nature-medicine",
+      "name": "Nature Medicine",
+      "europePmcJournal": "Nat Med"
+    }
+  ]
+}

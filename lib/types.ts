@@ -7,6 +7,7 @@ export type SourceType =
   | "derived_dataset"
   | "openreview_api"
   | "openreview_archive"
+  | "nature_peer_review"
   | "author_upload";
 
 export type MessageKind =
@@ -94,6 +95,17 @@ export interface IclrArchivePointer {
   year: number;
 }
 
+export interface NaturePeerReviewPointer {
+  pmcid: string;
+  doi: string;
+  articleUrl: string;
+  europePmcUrl?: string;
+  publishedAt?: string | null;
+  authorString?: string;
+  abstract?: string;
+  journal?: string;
+}
+
 export interface PaperIndexRecord {
   id: string;
   title: string;
@@ -112,6 +124,7 @@ export interface PaperIndexRecord {
   reviewBench?: ReviewBenchPointer | null;
   openReviewArchive?: OpenReviewArchivePointer | null;
   iclrArchive?: IclrArchivePointer | null;
+  nature?: NaturePeerReviewPointer | null;
   detailUrl?: string | null;
   source: PaperSource;
 }

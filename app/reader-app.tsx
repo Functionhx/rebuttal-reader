@@ -23,6 +23,7 @@ import {
   yearOptions,
 } from "@/lib/library-filters";
 import { AiAssistant } from "./ai-assistant";
+import { NatureDetail } from "./components/nature-detail";
 import { DiscoveryDialog } from "./discovery-dialog";
 
 type ViewMode = "chain" | "responses" | "decision";
@@ -75,6 +76,35 @@ interface ReviewBenchDetailPayload {
 }
 
 const PAGE_SIZE = 50;
+const SHARD_CONCURRENCY = 3;
+const NATURE_SHARD_CONCURRENCY = 2;
+
+const INDEX_ROOTS = [
+  { url: "/data/re2/index.json", priority: 0, nature: false },
+  { url: "/data/reviewbench/index.json", priority: 1, nature: false },
+  {
+    url: "/data/openreview-archive/index.json",
+    priority: 2,
+    nature: false,
+  },
+  { url: "/data/iclr-archive/index.json", priority: 3, nature: false },
+  { url: "/data/openreview/index.json", priority: 4, nature: false },
+  { url: "/data/nature/index.json", priority: 5, nature: true },
+] as const;
+
+interface IndexTask {
+  url: string;
+  priority: number;
+  nature: boolean;
+  depth: number;
+}
+
+interface IndexProgress {
+  label: string;
+  completed: number;
+  total: number;
+  failed: number;
+}
 
 const materialLabels = {
   conference_rebuttal: "Conference rebuttal",
@@ -93,6 +123,7 @@ const sourceLabels: Record<PaperRecord["source"]["type"], string> = {
   derived_dataset: "Re² 派生数据",
   openreview_api: "OpenReview API",
   openreview_archive: "OpenReview 公共归档",
+  nature_peer_review: "Europe PMC 开放索引",
   author_upload: "作者公开上传",
 };
 
@@ -208,6 +239,7 @@ function seedSummary(paper: PaperRecord): PaperIndexRecord {
     reviewBench: null,
     openReviewArchive: null,
     iclrArchive: null,
+    nature: null,
     detailUrl: null,
     source: paper.source,
   };
@@ -395,6 +427,7 @@ function PaperCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const isNature = paper.source.type === "nature_peer_review" && paper.nature;
   const delta = scoreDelta(paper);
   return (
     <button
@@ -406,11 +439,13 @@ function PaperCard({
       <span className="paper-card-topline">
         <span>{compactVenue(paper.venue)}</span>
         <span className={`delta delta-${scoreTone(delta)}`}>
-          {scoreLabel(
-            delta,
-            paper.scoreBefore.length,
-            paper.scoreAfter.length,
-          )}
+          {isNature
+            ? "透明同行评议"
+            : scoreLabel(
+                delta,
+                paper.scoreBefore.length,
+                paper.scoreAfter.length,
+              )}
         </span>
       </span>
       <strong>{paper.title}</strong>
@@ -422,8 +457,12 @@ function PaperCard({
         </span>
       )}
       <span className="paper-card-footer">
-        <span>{paper.decision.replace(/^Accept:\s*/i, "")}</span>
-        <span>{paper.reviewCount} 位 Reviewer</span>
+        <span>
+          {isNature
+            ? paper.nature?.doi || paper.nature?.pmcid
+            : paper.decision.replace(/^Accept:\s*/i, "")}
+        </span>
+        <span>{isNature ? "点击核验" : `${paper.reviewCount} 位 Reviewer`}</span>
       </span>
     </button>
   );
@@ -751,14 +790,18 @@ function UpdateDialog({
           <code>npm run update:iclr-archive</code>
         </div>
         <div className="command-block">
+          <span>刷新 Nature Portfolio 开放同行评议索引</span>
+          <code>npm run update:nature</code>
+        </div>
+        <div className="command-block">
           <span>补充一个公开 OpenReview Forum</span>
           <code>npm run update:openreview -- --forum &lt;forum-id&gt;</code>
         </div>
         <div className="privacy-rule">
           <strong>公开性闸门</strong>
           <span>
-            归档只收录公开数据；OpenReview 增量适配器还会逐条检查 readers
-            包含 everyone，私有内容直接跳过。
+            OpenReview 增量适配器会逐条检查 readers 是否包含 everyone；
+            无法确认公开权限的内容一律不进入目录。
           </span>
         </div>
       </section>
@@ -839,6 +882,12 @@ export function ReaderApp({
   });
   const [indexLoading, setIndexLoading] = useState(true);
   const [indexError, setIndexError] = useState("");
+  const [indexProgress, setIndexProgress] = useState<IndexProgress>({
+    label: "核心目录",
+    completed: 0,
+    total: INDEX_ROOTS.length,
+    failed: 0,
+  });
   const [query, setQuery] = useState("");
   const [venue, setVenue] = useState("全部");
   const [year, setYear] = useState("全部");
@@ -860,6 +909,7 @@ export function ReaderApp({
   const [showLibrary, setShowLibrary] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const aiTriggerRef = useRef<HTMLButtonElement>(null);
+  const userSelectedPaperRef = useRef(false);
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
@@ -873,82 +923,259 @@ export function ReaderApp({
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+
+    const seedSummaries = seedPapers.map(seedSummary);
+    const catalog = new Map<
+      string,
+      { paper: PaperIndexRecord; priority: number }
+    >(
+      seedSummaries.map((paper) => [
+        paper.id,
+        { paper, priority: Number.POSITIVE_INFINITY },
+      ]),
+    );
+    const generatedDates = new Set<string>();
+    if (seedGeneratedAt) generatedDates.add(seedGeneratedAt);
+    const loadedLeafUrls = new Set<string>();
+    const scheduledUrls = new Set(INDEX_ROOTS.map((root) => root.url));
+    const requestedPaperId =
+      typeof window === "undefined"
+        ? ""
+        : new URLSearchParams(window.location.search).get("paper") || "";
+    let requestedPaperResolved = false;
+    let failedLoads = 0;
+    let shardCompleted = 0;
+    let shardTotal = 0;
+
+    const sortedCatalog = () =>
+      Array.from(catalog.values(), ({ paper }) => paper).sort(
+        (a, b) =>
+          b.year - a.year ||
+          a.venue.localeCompare(b.venue) ||
+          a.title.localeCompare(b.title),
+      );
+
+    const publishCatalog = () => {
+      if (cancelled) return;
+      const merged = sortedCatalog();
+      setPapers(merged);
+      setLibraryMeta({
+        generatedAt:
+          Array.from(generatedDates).sort().at(-1) ?? seedGeneratedAt,
+        sourceCount:
+          loadedLeafUrls.size + (seedPapers.length > 0 ? 1 : 0),
+        paperCount: merged.length,
+        conversationCount: merged.reduce(
+          (count, paper) => count + paper.reviewCount,
+          0,
+        ),
+      });
+
+      if (
+        !requestedPaperResolved &&
+        !userSelectedPaperRef.current &&
+        requestedPaperId &&
+        catalog.has(requestedPaperId)
+      ) {
+        requestedPaperResolved = true;
+        const requested = catalog.get(requestedPaperId)?.paper;
+        if (requested?.source.type === "nature_peer_review") {
+          setSelectedPaper(null);
+          setDetailLoading(false);
+          setDetailError("");
+          setShowAssistant(false);
+        }
+        setSelectedPaperId(requestedPaperId);
+        return;
+      }
+      setSelectedPaperId((current) => current || merged[0]?.id || "");
+    };
+
+    const mergeIndex = (
+      index: LibraryIndexFile,
+      task: IndexTask,
+      leaf: boolean,
+    ) => {
+      if (index.meta.generatedAt) {
+        generatedDates.add(index.meta.generatedAt);
+      }
+      if (leaf || index.papers.length > 0) {
+        loadedLeafUrls.add(task.url);
+      }
+
+      let changed = false;
+      for (const paper of index.papers) {
+        const current = catalog.get(paper.id);
+        if (!current || task.priority > current.priority) {
+          catalog.set(paper.id, { paper, priority: task.priority });
+          changed = true;
+        }
+      }
+      if (changed || leaf) publishCatalog();
+    };
+
+    const fetchIndex = async (task: IndexTask) => {
+      const response = await fetch(task.url, {
+        cache: "no-cache",
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const index = (await response.json()) as LibraryIndexFile;
+      if (
+        !index ||
+        !index.meta ||
+        !Array.isArray(index.papers)
+      ) {
+        throw new Error("Invalid library index.");
+      }
+      return index;
+    };
+
+    const coreShardTasks: IndexTask[] = [];
+    const natureShardTasks: IndexTask[] = [];
+
+    const enqueueShards = (index: LibraryIndexFile, parent: IndexTask) => {
+      if (parent.depth >= 2) return;
+      for (const shard of index.meta.shards ?? []) {
+        if (
+          typeof shard.url !== "string" ||
+          !shard.url.startsWith("/data/") ||
+          scheduledUrls.has(shard.url)
+        ) {
+          continue;
+        }
+        scheduledUrls.add(shard.url);
+        const task = {
+          url: shard.url,
+          priority: parent.priority,
+          nature: parent.nature,
+          depth: parent.depth + 1,
+        };
+        if (task.nature) natureShardTasks.push(task);
+        else coreShardTasks.push(task);
+        shardTotal += 1;
+      }
+    };
+
     async function loadIndex() {
       try {
-        const load = async (
-          url: string,
-          depth = 0,
-        ): Promise<LibraryIndexFile[]> => {
-          try {
-            const response = await fetch(url, { cache: "no-cache" });
-            if (!response.ok) return [];
-            const index = (await response.json()) as LibraryIndexFile;
-            if (index.meta.shards?.length && depth < 2) {
-              const groups = await Promise.all(
-                index.meta.shards.map((shard) =>
-                  load(shard.url, depth + 1),
-                ),
-              );
-              return groups.flat();
-            }
-            return [index];
-          } catch {
-            return [];
+        if (requestedPaperId && catalog.has(requestedPaperId)) {
+          requestedPaperResolved = true;
+          const requested = catalog.get(requestedPaperId)?.paper;
+          if (requested?.source.type === "nature_peer_review") {
+            setSelectedPaper(null);
+            setDetailLoading(false);
+            setDetailError("");
+            setShowAssistant(false);
           }
+          setSelectedPaperId(requestedPaperId);
+        }
+
+        let rootCompleted = 0;
+        await Promise.all(
+          INDEX_ROOTS.map(async (root) => {
+            const task: IndexTask = { ...root, depth: 0 };
+            try {
+              const index = await fetchIndex(task);
+              const leaf = !index.meta.shards?.length;
+              mergeIndex(index, task, leaf);
+              enqueueShards(index, task);
+            } catch (error) {
+              if (
+                error instanceof DOMException &&
+                error.name === "AbortError"
+              ) {
+                return;
+              }
+              failedLoads += 1;
+            } finally {
+              rootCompleted += 1;
+              if (!cancelled) {
+                setIndexProgress({
+                  label: "核心目录",
+                  completed: rootCompleted,
+                  total: INDEX_ROOTS.length,
+                  failed: failedLoads,
+                });
+              }
+            }
+          }),
+        );
+
+        if (cancelled) return;
+        setIndexProgress({
+          label: shardTotal > 0 ? "年份分片" : "核心目录",
+          completed: 0,
+          total: shardTotal || INDEX_ROOTS.length,
+          failed: failedLoads,
+        });
+
+        const runQueue = async (
+          tasks: IndexTask[],
+          concurrency: number,
+        ) => {
+          let cursor = 0;
+          const worker = async () => {
+            while (!cancelled) {
+              const task = tasks[cursor];
+              cursor += 1;
+              if (!task) return;
+
+              try {
+                const index = await fetchIndex(task);
+                const leaf = !index.meta.shards?.length;
+                mergeIndex(index, task, leaf);
+                enqueueShards(index, task);
+              } catch (error) {
+                if (
+                  error instanceof DOMException &&
+                  error.name === "AbortError"
+                ) {
+                  return;
+                }
+                failedLoads += 1;
+              } finally {
+                shardCompleted += 1;
+                if (!cancelled) {
+                  setIndexProgress({
+                    label: task.nature
+                      ? "Nature 年份目录"
+                      : "公开归档分片",
+                    completed: shardCompleted,
+                    total: shardTotal,
+                    failed: failedLoads,
+                  });
+                }
+              }
+            }
+          };
+
+          await Promise.all(
+            Array.from(
+              { length: Math.min(concurrency, tasks.length) },
+              () => worker(),
+            ),
+          );
         };
-        const groups = await Promise.all([
-          load("/data/re2/index.json"),
-          load("/data/reviewbench/index.json"),
-          load("/data/openreview-archive/index.json"),
-          load("/data/iclr-archive/index.json"),
-          load("/data/openreview/index.json"),
+
+        await Promise.all([
+          runQueue(coreShardTasks, SHARD_CONCURRENCY),
+          runQueue(natureShardTasks, NATURE_SHARD_CONCURRENCY),
         ]);
-        const indexes = groups.flat();
-        if (indexes.length === 0) {
+
+        if (cancelled) return;
+        if (catalog.size === 0) {
           throw new Error("No library index is available.");
         }
-        if (cancelled) return;
-
-        const byId = new Map<string, PaperIndexRecord>();
-        for (const index of indexes) {
-          for (const paper of index.papers) byId.set(paper.id, paper);
-        }
-        for (const paper of seedPapers) byId.set(paper.id, seedSummary(paper));
-        const merged = Array.from(byId.values()).sort(
-          (a, b) =>
-            b.year - a.year ||
-            a.venue.localeCompare(b.venue) ||
-            a.title.localeCompare(b.title),
+        publishCatalog();
+        setIndexError(
+          failedLoads > 0
+            ? `${failedLoads} 个目录分片暂时无法读取，其余案例仍可正常浏览。`
+            : "",
         );
-        setPapers(merged);
-        setLibraryMeta({
-          generatedAt:
-            [
-              ...indexes.map((index) => index.meta.generatedAt),
-              seedGeneratedAt,
-            ]
-              .filter((value): value is string => Boolean(value))
-              .sort()
-              .at(-1) ?? null,
-          sourceCount: indexes.length + (seedPapers.length ? 1 : 0),
-          paperCount: merged.length,
-          conversationCount: merged.reduce(
-            (count, paper) => count + paper.reviewCount,
-            0,
-          ),
-        });
-        const requestedPaperId =
-          typeof window === "undefined"
-            ? ""
-            : new URLSearchParams(window.location.search).get("paper") || "";
-        setSelectedPaperId(
-          (current) =>
-            current ||
-            (requestedPaperId && byId.has(requestedPaperId)
-              ? requestedPaperId
-              : merged[0]?.id || ""),
-        );
-        setIndexError("");
       } catch {
         if (!cancelled) {
           setIndexError("完整索引暂时无法读取，请稍后刷新。");
@@ -960,6 +1187,7 @@ export function ReaderApp({
     loadIndex();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [seedGeneratedAt, seedPapers]);
 
@@ -970,6 +1198,9 @@ export function ReaderApp({
 
   const loadPaperForAssistant = useCallback(
     async (summary: PaperIndexRecord, signal?: AbortSignal) => {
+      if (summary.source.type === "nature_peer_review") {
+        throw new Error("Nature 透明同行评议当前以官方文件形式阅读。");
+      }
       const cached = detailCache.current.get(summary.id);
       if (cached) return cached;
       const detail = await fetchPaperDetail(summary, signal);
@@ -981,6 +1212,12 @@ export function ReaderApp({
 
   useEffect(() => {
     if (!selectedSummary) return;
+    if (
+      selectedSummary.source.type === "nature_peer_review" &&
+      selectedSummary.nature
+    ) {
+      return;
+    }
     const cached = detailCache.current.get(selectedSummary.id);
     if (cached) {
       setSelectedPaper(cached);
@@ -1045,6 +1282,10 @@ export function ReaderApp({
           paper.venue,
           paper.decision,
           paper.topics.join(" "),
+          paper.nature?.pmcid,
+          paper.nature?.doi,
+          paper.nature?.authorString,
+          paper.nature?.journal,
         ]
           .join(" ")
           .toLowerCase()
@@ -1061,10 +1302,13 @@ export function ReaderApp({
   );
 
   const choosePaper = useCallback((paperId: string) => {
+    userSelectedPaperRef.current = true;
     setSelectedPaperId(paperId);
+    setSelectedPaper((current) => (current?.id === paperId ? current : null));
     setSelectedThread(0);
     setViewMode("chain");
     setDetailError("");
+    setShowAssistant(false);
     setShowLibrary(false);
     if (
       typeof window !== "undefined" &&
@@ -1127,6 +1371,9 @@ export function ReaderApp({
   const currentThread =
     selectedPaper?.threads[selectedThread] ?? selectedPaper?.threads[0];
   const delta = selectedPaper ? scoreDelta(selectedPaper) : null;
+  const selectedIsNature =
+    selectedSummary.source.type === "nature_peer_review" &&
+    Boolean(selectedSummary.nature);
 
   return (
     <div className="reader-app">
@@ -1210,8 +1457,8 @@ export function ReaderApp({
             </button>
           </div>
           <p className="library-description">
-            当前列表是已索引公开案例（以 OpenReview 来源为主）；Nature
-            期刊与 GitHub 材料通过下方 arXiv 入口按需查找。
+            OpenReview 讨论与 Nature Portfolio 透明同行评议已统一进入目录；
+            详细讨论或官方文件只在点开单篇时读取。
           </p>
           <button
             type="button"
@@ -1222,8 +1469,8 @@ export function ReaderApp({
             }}
           >
             <span>
-              <strong>查 Nature Portfolio / GitHub</strong>
-              <small>检查主刊 / 子刊是否有公开 Peer Review File</small>
+              <strong>用 arXiv 补查 Nature / GitHub</strong>
+              <small>发现尚未进入目录的公开 Rebuttal 材料</small>
             </span>
             <b aria-hidden="true">→</b>
           </button>
@@ -1236,7 +1483,7 @@ export function ReaderApp({
                 setQuery(event.target.value);
                 setPage(0);
               }}
-              placeholder="标题、主题、会议或 Forum ID"
+              placeholder="标题、期刊、DOI、PMCID 或 Forum ID"
               aria-label="搜索案例"
             />
             {query && (
@@ -1299,7 +1546,16 @@ export function ReaderApp({
               <strong>{filteredPapers.length.toLocaleString()}</strong> 篇匹配
             </span>
             <span>
-              {safePage + 1} / {pageCount} 页
+              {indexLoading
+                ? `thinking... ${indexProgress.label} ${Math.min(
+                    indexProgress.completed,
+                    indexProgress.total,
+                  )} / ${indexProgress.total}${
+                    indexProgress.failed > 0
+                      ? ` · ${indexProgress.failed} 暂缓`
+                      : ""
+                  }`
+                : `${safePage + 1} / ${pageCount} 页`}
             </span>
             {(query || venue !== "全部" || year !== "全部") && (
               <button
@@ -1376,7 +1632,16 @@ export function ReaderApp({
         )}
 
         <section id="reading-workspace" className="reading-workspace">
-          {detailLoading && (
+          {selectedIsNature && (
+              <NatureDetail
+                key={selectedSummary.id}
+                paper={selectedSummary}
+                linkCopied={linkCopied}
+                onCopyLink={copyPaperLink}
+              />
+            )}
+
+          {!selectedIsNature && detailLoading && (
             <ReaderState
               title="正在读取这篇的完整讨论"
               body="只拉取当前论文的 Review、Author Response 与后续追问。"
@@ -1384,7 +1649,7 @@ export function ReaderApp({
             />
           )}
 
-          {!detailLoading && detailError && (
+          {!selectedIsNature && !detailLoading && detailError && (
             <ReaderState
               title="这篇暂时没有读出来"
               body={detailError}
@@ -1410,7 +1675,11 @@ export function ReaderApp({
             />
           )}
 
-          {!detailLoading && !detailError && selectedPaper && (
+          {!selectedIsNature &&
+            !detailLoading &&
+            !detailError &&
+            selectedPaper &&
+            selectedPaper.id === selectedSummary.id && (
             <main id="paper-reader" className="paper-reader">
               <div className="reader-toolbar">
                 <div className="material-badge">
@@ -1593,8 +1862,8 @@ export function ReaderApp({
                   />
                 )}
               </div>
-            </main>
-          )}
+              </main>
+            )}
         </section>
       </div>
 
@@ -1606,7 +1875,9 @@ export function ReaderApp({
           onClose={() => setShowUpdate(false)}
         />
       )}
-      {selectedPaper && (
+      {!selectedIsNature &&
+        selectedPaper &&
+        selectedPaper.id === selectedSummary.id && (
         <AiAssistant
           key={`${selectedPaper.id}:${currentThread?.id ?? "all"}`}
           open={showAssistant}
