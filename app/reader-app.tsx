@@ -327,8 +327,12 @@ function PaperCard({
         </span>
       </span>
       <strong>{paper.title}</strong>
-      {paper.titleKind === "review_heading" && (
-        <span className="title-origin">Reviewer 给出的主题标题</span>
+      {paper.titleKind !== "paper_title" && (
+        <span className="title-origin">
+          {paper.titleKind === "review_heading"
+            ? "Reviewer 主题 · 非论文标题"
+            : "仅有 Forum ID"}
+        </span>
       )}
       <span className="paper-card-footer">
         <span>{paper.decision.replace(/^Accept:\s*/i, "")}</span>
@@ -943,12 +947,16 @@ export function ReaderApp({
         return payload as DetailPayload | ReviewBenchDetailPayload | PaperRecord;
       })
       .then((payload) => {
-        const detail =
+        const rawDetail =
           "paper" in payload
             ? payload.paper
             : "rebuttals" in payload
               ? hydratePaper(selectedSummary, payload)
               : payload;
+        const detail = {
+          ...rawDetail,
+          titleKind: rawDetail.titleKind ?? selectedSummary.titleKind,
+        };
         detailCache.current.set(detail.id, detail);
         setSelectedPaper(detail);
         setDetailLoading(false);
@@ -1365,11 +1373,23 @@ export function ReaderApp({
                   <span>{selectedPaper.year}</span>
                   <span>Forum {selectedPaper.id}</span>
                 </div>
-                <h1>{selectedPaper.title}</h1>
-                {selectedPaper.titleKind !== "paper_title" && (
+                <h1>
+                  {selectedPaper.titleKind === "identifier"
+                    ? "论文标题未收录"
+                    : selectedPaper.title}
+                </h1>
+                {selectedPaper.titleKind === "review_heading" && (
                   <p className="metadata-note">
-                    当前数据源没有保存论文标题；这里展示 Reviewer
-                    的主题标题或 Forum ID。
+                    <strong>Reviewer 主题 · 非论文标题</strong>
+                    论文标题未随这份数据快照保存；本页暂以 Reviewer
+                    写下的主题作为阅读线索。
+                  </p>
+                )}
+                {selectedPaper.titleKind === "identifier" && (
+                  <p className="metadata-note">
+                    <strong>仅有 Forum ID</strong>
+                    这份公开数据快照没有保存可验证的论文标题，因此不根据正文猜测标题。可通过上方
+                    Forum ID 或原始链接核对。
                   </p>
                 )}
                 {selectedPaper.authors.length > 0 && (

@@ -733,6 +733,16 @@ button:disabled {
   line-height: 1.6;
 }
 
+.metadata-note strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--accent-dark);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .abstract-disclosure {
   max-width: 760px;
   margin-top: 18px;

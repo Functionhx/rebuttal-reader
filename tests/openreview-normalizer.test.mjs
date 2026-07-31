@@ -102,6 +102,7 @@ test("normalizer builds a review-response-follow-up chain", () => {
 
   const paper = normalizeForum(root, registry, "2026-07-30T00:00:00.000Z");
   assert.equal(paper.title, "A Public Paper");
+  assert.equal(paper.titleKind, "paper_title");
   assert.equal(paper.decision, "Accept (Poster)");
   assert.equal(paper.metaReview, "The discussion resolved the main issue.");
   assert.equal(paper.threads.length, 1);
@@ -111,6 +112,48 @@ test("normalizer builds a review-response-follow-up chain", () => {
   );
   assert.equal(paper.threads[0].initialScore, 5);
   assert.equal(paper.threads[0].finalScore, 7);
+});
+
+test("normalizer marks a missing submission title as an identifier", () => {
+  const root = {
+    id: "paper-without-title",
+    domain: "ICLR.cc/2025/Conference",
+    readers: ["everyone"],
+    content: {},
+    details: {
+      replies: [
+        {
+          id: "review-untitled",
+          forum: "paper-without-title",
+          replyto: "paper-without-title",
+          readers: ["everyone"],
+          invitations: [
+            "ICLR.cc/2025/Conference/-/Official_Review",
+          ],
+          content: {
+            review: { value: "The evidence needs clarification." },
+          },
+        },
+        {
+          id: "response-untitled",
+          forum: "paper-without-title",
+          replyto: "review-untitled",
+          readers: ["everyone"],
+          signatures: ["ICLR.cc/2025/Conference/Paper1/Authors"],
+          invitations: [
+            "ICLR.cc/2025/Conference/-/Author_Response",
+          ],
+          content: {
+            response: { value: "We clarified the evidence." },
+          },
+        },
+      ],
+    },
+  };
+
+  const paper = normalizeForum(root, registry);
+  assert.equal(paper.title, "OpenReview paper paper-without-title");
+  assert.equal(paper.titleKind, "identifier");
 });
 
 test("normalizer skips a public forum that has reviews but no author response", () => {

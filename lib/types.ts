@@ -45,7 +45,7 @@ export interface PaperSource {
 export interface PaperRecord {
   id: string;
   title: string;
-  titleKind?: "paper_title" | "review_heading" | "identifier";
+  titleKind: "paper_title" | "review_heading" | "identifier";
   authors: string[];
   venue: string;
   year: number;

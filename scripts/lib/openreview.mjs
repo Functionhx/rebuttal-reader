@@ -264,7 +264,8 @@ export function normalizeForum(root, registry, retrievedAt = new Date().toISOStr
   }
 
   const yearMatch = venueId.match(/(?:19|20)\d{2}/);
-  const title = contentText(root, "title") || `OpenReview paper ${root.id}`;
+  const sourceTitle = contentText(root, "title");
+  const title = sourceTitle || `OpenReview paper ${root.id}`;
   const authors = unwrap(root.content?.authors);
   const keywords = unwrap(root.content?.keywords);
   const decision =
@@ -275,6 +276,7 @@ export function normalizeForum(root, registry, retrievedAt = new Date().toISOStr
   return {
     id: root.id,
     title,
+    titleKind: sourceTitle ? "paper_title" : "identifier",
     authors: Array.isArray(authors) ? authors.map(String) : [],
     venue:
       config.label ||
