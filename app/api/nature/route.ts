@@ -117,7 +117,9 @@ async function fetchEuropePmcXml(pmcid: string) {
     if (
       response.url &&
       (new URL(response.url).origin !== EUROPE_PMC_API_ORIGIN ||
-        new URL(response.url).pathname !== endpoint.pathname)
+        new URL(response.url).pathname !== endpoint.pathname ||
+        new URL(response.url).search ||
+        new URL(response.url).hash)
     ) {
       throw new NatureApiError(502, "invalid_response");
     }
@@ -205,7 +207,16 @@ export async function POST(request: Request) {
             : error.code === "http" && error.status === 404
               ? "Europe PMC has no full-text XML for this PMCID."
               : "Europe PMC could not be queried safely.";
-      return json({ error: message, pmcid, europePmcUrl, peerReviewFiles: [] }, status);
+      return json(
+        {
+          error: message,
+          code: error.code,
+          pmcid,
+          europePmcUrl,
+          peerReviewFiles: [],
+        },
+        status,
+      );
     }
     return json(
       {

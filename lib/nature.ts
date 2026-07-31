@@ -1,10 +1,10 @@
 /**
- * Pure helpers for discovering Nature Portfolio transparent peer-review files
- * in Europe PMC full-text XML.
+ * Helpers for discovering Nature Portfolio transparent peer-review files in
+ * Europe PMC full-text XML.
  *
- * This module never performs network requests and never trusts an attachment
- * URL supplied by the XML. It accepts only a plain PDF filename and constructs
- * the public Europe PMC URL from a validated PMCID.
+ * The browser fallback fetches only Europe PMC's fixed XML endpoint. Attachment
+ * URLs from the XML are never trusted: the parser accepts only a plain PDF
+ * filename and constructs the public URL from a validated PMCID.
  */
 
 export interface NaturePeerReviewFile {
@@ -12,6 +12,8 @@ export interface NaturePeerReviewFile {
   filename: string;
   url: string;
 }
+
+export const MAX_EUROPE_PMC_XML_BYTES = 12_000_000;
 
 const PMCID_PATTERN = /^PMC[1-9]\d{0,11}$/u;
 const SAFE_PDF_FILENAME_PATTERN =
@@ -28,6 +30,85 @@ export function europePmcArticleUrl(pmcid: string): string {
     throw new TypeError("Invalid PMCID");
   }
   return `https://europepmc.org/articles/${pmcid}`;
+}
+
+async function readResponseTextBounded(response: Response, byteCap: number) {
+  if (!Number.isFinite(byteCap) || byteCap <= 0) {
+    throw new TypeError("byteCap must be a positive finite number.");
+  }
+
+  const declaredLength = response.headers.get("content-length");
+  if (declaredLength !== null) {
+    const parsedLength = Number(declaredLength);
+    if (Number.isFinite(parsedLength) && parsedLength > byteCap) {
+      throw new Error("Europe PMC XML exceeded the safety limit.");
+    }
+  }
+
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let output = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > byteCap) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error("Europe PMC XML exceeded the safety limit.");
+      }
+      output += decoder.decode(value, { stream: true });
+    }
+    output += decoder.decode();
+    return output;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export async function fetchNaturePeerReviewFilesDirect(
+  pmcid: string,
+  {
+    fetchImpl = fetch,
+    signal,
+    byteCap = MAX_EUROPE_PMC_XML_BYTES,
+  }: {
+    fetchImpl?: typeof fetch;
+    signal?: AbortSignal;
+    byteCap?: number;
+  } = {},
+) {
+  if (!isValidPmcid(pmcid)) {
+    throw new TypeError("Invalid PMCID");
+  }
+  const endpoint = new URL(
+    `/europepmc/webservices/rest/${pmcid}/fullTextXML`,
+    "https://www.ebi.ac.uk",
+  );
+  const response = await fetchImpl(endpoint, {
+    headers: { Accept: "application/xml, text/xml;q=0.9" },
+    redirect: "error",
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Europe PMC HTTP ${response.status}`);
+  }
+  if (response.url) {
+    const responseUrl = new URL(response.url);
+    if (
+      responseUrl.origin !== endpoint.origin ||
+      responseUrl.pathname !== endpoint.pathname ||
+      responseUrl.search ||
+      responseUrl.hash
+    ) {
+      throw new Error("Europe PMC returned an unexpected URL.");
+    }
+  }
+  const xml = await readResponseTextBounded(response, byteCap);
+  return parseNaturePeerReviewFiles(xml, pmcid);
 }
 
 function decodeXmlEntities(value: string): string {

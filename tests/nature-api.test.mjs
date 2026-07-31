@@ -3,6 +3,7 @@ import { afterEach, test } from "node:test";
 
 import { POST } from "../app/api/nature/route.ts";
 import {
+  fetchNaturePeerReviewFilesDirect,
   isValidPmcid,
   parseNaturePeerReviewFiles,
 } from "../lib/nature.ts";
@@ -53,6 +54,52 @@ test("extracts a transparent peer-review PDF and constructs an official URL", ()
       url: "https://europepmc.org/articles/PMC11997106/bin/41467_2025_58900_MOESM3_ESM.pdf",
     },
   ]);
+});
+
+test("browser fallback fetches only the fixed Europe PMC XML endpoint", async () => {
+  const calls = [];
+  const files = await fetchNaturePeerReviewFilesDirect("PMC11997106", {
+    fetchImpl: async (input, init) => {
+      calls.push({ url: new URL(String(input)), init });
+      return new Response(normalXml, {
+        headers: {
+          "Content-Type": "application/xml",
+          "Content-Length": String(Buffer.byteLength(normalXml)),
+        },
+      });
+    },
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url.origin, "https://www.ebi.ac.uk");
+  assert.equal(
+    calls[0].url.pathname,
+    "/europepmc/webservices/rest/PMC11997106/fullTextXML",
+  );
+  assert.equal(calls[0].init.redirect, "error");
+  assert.equal(files[0].filename, "41467_2025_58900_MOESM3_ESM.pdf");
+});
+
+test("browser fallback rejects oversized XML before parsing", async () => {
+  await assert.rejects(
+    fetchNaturePeerReviewFilesDirect("PMC11997106", {
+      fetchImpl: async () =>
+        new Response("not read", {
+          headers: { "Content-Length": "12000001" },
+        }),
+    }),
+    /exceeded the safety limit/,
+  );
+});
+
+test("browser fallback enforces the byte cap while streaming", async () => {
+  await assert.rejects(
+    fetchNaturePeerReviewFilesDirect("PMC11997106", {
+      byteCap: 5,
+      fetchImpl: async () => new Response("123456"),
+    }),
+    /exceeded the safety limit/,
+  );
 });
 
 test("rejects malicious, external, encoded, and non-PDF media hrefs", () => {

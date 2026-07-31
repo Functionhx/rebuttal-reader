@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { PaperIndexRecord } from "@/lib/types";
 import { compactVenue } from "@/lib/library-filters";
+import {
+  fetchNaturePeerReviewFilesDirect,
+} from "@/lib/nature";
 
 type JsonRecord = Record<string, unknown>;
+const FILE_LOOKUP_TIMEOUT_MS = 25_000;
 
 interface NatureDetailProps {
   paper: PaperIndexRecord;
@@ -87,7 +91,9 @@ export function NatureDetail({
 
   useEffect(
     () => () => {
-      activeController.current?.abort();
+      const controller = activeController.current;
+      activeController.current = null;
+      controller?.abort();
       if (waitingTabRef.current && !waitingTabRef.current.closed) {
         waitingTabRef.current.close();
       }
@@ -103,6 +109,7 @@ export function NatureDetail({
   const europePmcUrl = `https://europepmc.org/articles/${pointer.pmcid}`;
 
   const openPeerReviewFile = async () => {
+    if (activeController.current) return;
     if (resolvedUrl) {
       window.open(resolvedUrl, "_blank", "noopener,noreferrer");
       return;
@@ -115,26 +122,51 @@ export function NatureDetail({
     activeController.current = controller;
     setFileLoading(true);
     setFileError("");
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, FILE_LOOKUP_TIMEOUT_MS);
 
     try {
-      const response = await fetch("/api/nature", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pmcid: pointer.pmcid }),
-        signal: controller.signal,
-      });
-      const payload = (await response.json()) as unknown;
-      if (!response.ok) {
-        const message =
-          isRecord(payload) && typeof payload.error === "string"
-            ? payload.error
-            : `HTTP ${response.status}`;
-        throw new Error(message);
+      let fileUrl: string | null = null;
+      let serverError = "";
+      try {
+        const response = await fetch("/api/nature", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pmcid: pointer.pmcid }),
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as unknown;
+        if (response.ok) {
+          fileUrl = fileUrlFromPayload(payload, pointer.pmcid);
+        } else {
+          serverError =
+            isRecord(payload) && typeof payload.error === "string"
+              ? payload.error
+              : `HTTP ${response.status}`;
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          throw error;
+        }
+        serverError =
+          error instanceof Error ? error.message : "站内解析暂时不可用。";
       }
 
-      const fileUrl = fileUrlFromPayload(payload, pointer.pmcid);
       if (!fileUrl) {
-        throw new Error("Europe PMC 记录里暂时没有可验证的同行评议文件链接。");
+        const directFiles = await fetchNaturePeerReviewFilesDirect(
+          pointer.pmcid,
+          { signal: controller.signal },
+        );
+        fileUrl = directFiles[0]?.url ?? null;
+      }
+      if (!fileUrl) {
+        throw new Error(
+          serverError ||
+            "Europe PMC 记录里暂时没有可验证的同行评议文件链接。",
+        );
       }
 
       setResolvedUrl(fileUrl);
@@ -146,18 +178,24 @@ export function NatureDetail({
       }
     } catch (error) {
       if (waitingTab && !waitingTab.closed) waitingTab.close();
-      waitingTabRef.current = null;
-      if (error instanceof DOMException && error.name === "AbortError") return;
+      if (waitingTabRef.current === waitingTab) waitingTabRef.current = null;
+      if (error instanceof DOMException && error.name === "AbortError") {
+        if (timedOut && activeController.current === controller) {
+          setFileError("Europe PMC 响应超时，请稍后重试。");
+        }
+        return;
+      }
       setFileError(
         error instanceof Error
           ? error.message
           : "公开同行评议文件暂时无法定位。",
       );
     } finally {
+      window.clearTimeout(timeout);
       if (activeController.current === controller) {
         activeController.current = null;
+        setFileLoading(false);
       }
-      setFileLoading(false);
     }
   };
 
