@@ -679,16 +679,47 @@ function ReaderState({
   title,
   body,
   action,
+  loading = false,
 }: {
   title: string;
   body: string;
   action?: React.ReactNode;
+  loading?: boolean;
 }) {
   return (
-    <main className="reader-state">
+    <main
+      className={`reader-state${loading ? " is-loading" : ""}`}
+      aria-busy={loading || undefined}
+    >
       <span className="brand-mark">R/</span>
+      {loading && (
+        <div
+          className="thinking-label"
+          role="status"
+          aria-live="polite"
+          aria-label="thinking..."
+        >
+          <span aria-hidden="true">
+            thinking
+            <span className="thinking-dots">
+              <i>.</i>
+              <i>.</i>
+              <i>.</i>
+            </span>
+          </span>
+        </div>
+      )}
       <h1>{title}</h1>
       <p>{body}</p>
+      {loading && (
+        <div
+          className="loading-progress"
+          role="progressbar"
+          aria-label="正在加载"
+        >
+          <span />
+        </div>
+      )}
       {action}
     </main>
   );
@@ -1043,6 +1074,7 @@ export function ReaderApp({
       <ReaderState
         title="正在展开完整案例库"
         body="第一次会先读取轻量目录，正文只在你点开某篇时加载。"
+        loading
       />
     );
   }
@@ -1269,6 +1301,7 @@ export function ReaderApp({
             <ReaderState
               title="正在读取这篇的完整讨论"
               body="只拉取当前论文的 Review、Author Response 与后续追问。"
+              loading
             />
           )}
 

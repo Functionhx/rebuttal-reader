@@ -31,6 +31,8 @@ test("server-renders the rebuttal reader", async () => {
   assert.match(html, /<title>答辩录 · Rebuttal Reader<\/title>/i);
   assert.match(html, /正在展开完整案例库/);
   assert.match(html, /轻量目录/);
+  assert.match(html, /thinking/);
+  assert.match(html, /role="progressbar"/);
   assert.match(html, /reader-app-[A-Za-z0-9_-]+\.js/);
   assert.doesNotMatch(html, /codex-preview|Building your site|SkeletonPreview/);
 });

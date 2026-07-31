@@ -1487,6 +1487,37 @@ button:disabled {
   height: 42px;
 }
 
+.thinking-label {
+  margin-top: 22px;
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: clamp(30px, 4vw, 40px);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+.thinking-dots {
+  display: inline-flex;
+  margin-left: 1px;
+  letter-spacing: 0;
+}
+
+.thinking-dots i {
+  display: inline-block;
+  font-style: inherit;
+  animation: thinking-dot 1.35s ease-in-out infinite;
+}
+
+.thinking-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.thinking-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
 .reader-state h1 {
   max-width: 620px;
   margin: 20px 0 8px;
@@ -1503,6 +1534,63 @@ button:disabled {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.7;
+}
+
+.reader-state.is-loading h1 {
+  margin-top: 17px;
+  font-family:
+    var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: clamp(18px, 2vw, 21px);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+
+.reader-state.is-loading p {
+  font-size: 12px;
+}
+
+.loading-progress {
+  position: relative;
+  width: min(320px, 72vw);
+  height: 3px;
+  margin-top: 24px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.loading-progress > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: thinking-progress 1.45s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes thinking-dot {
+  0%,
+  55%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+
+  25% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes thinking-progress {
+  from {
+    transform: translateX(-110%);
+  }
+
+  to {
+    transform: translateX(290%);
+  }
 }
 
 .reader-state-actions {
@@ -1823,6 +1911,18 @@ button:disabled {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .thinking-dots i {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .loading-progress > span {
+    animation: none !important;
+    width: 45%;
+    transform: translateX(64%);
   }
 
   *,
