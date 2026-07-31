@@ -105,6 +105,10 @@ canonical page，不会被镜像进本仓库；GitHub 与网页搜索命中项�
 都会明确标成“候选”。同样，“没有找到”只表示本次查询的公开来源没有返回可靠匹配，**不代表
 这篇论文一定不存在 Rebuttal**。
 
+Nature 结果目前只显示在单篇跨来源查找窗口中，不会进入左侧以 OpenReview 来源为主的案例库，
+也不会出现在其 Venue / 年份筛选里。网站会链接 Nature 的合并同行评议文件，但尚未把其中的
+Decision Letter、Reviewer Report 与 Author Response 拆成站内因果时间线。
+
 ### 可选的发现服务凭据
 
 即使没有任何私有凭据，基础发现仍然可用：arXiv 元数据、本地 / OpenReview 索引、Crossref，
@@ -340,6 +344,7 @@ scripts/
 config/venues.json                 # 不同 venue 的 invitation 适配 registry
 lib/
 ├── discovery.ts                   # 输入校验、论文匹配与来源发现辅助函数
+├── library-filters.ts             # 以年份为主的 Venue 联动筛选
 ├── rag.ts                         # 确定性召回与证据长度控制
 └── types.ts                       # 统一数据模型与来源类型
 tests/                             # 构建、API 安全、召回与规范化测试

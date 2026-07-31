@@ -287,16 +287,32 @@ export function DiscoveryDialog({
 
         <header className="discovery-header">
           <span className="eyebrow">ArXiv → public evidence</span>
-          <h2 id="discovery-title">全网找 Rebuttal</h2>
+          <h2 id="discovery-title">查 Nature 透明评审 / GitHub 线索</h2>
           <p id="discovery-description">
-            粘贴 arXiv 地址，按需检查答辩录索引、Nature Portfolio
-            透明评审附件、GitHub 与可选的全网搜索。
+            Nature 期刊材料不会混在左侧以 OpenReview
+            来源为主的案例库里。请粘贴 arXiv 地址，按需检查 Nature Portfolio
+            及其子刊的透明评审附件、GitHub、Crossref 与答辩录索引。
           </p>
         </header>
 
+        <ul className="discovery-source-strip" aria-label="可检查的数据源">
+          <li>
+            <strong>Nature Portfolio</strong>
+            <small>包含子刊 · Peer Review File</small>
+          </li>
+          <li>
+            <strong>GitHub</strong>
+            <small>仓库与 Rebuttal 文件线索</small>
+          </li>
+          <li>
+            <strong>Crossref + 答辩录索引</strong>
+            <small>DOI 关系与本地公开案例</small>
+          </li>
+        </ul>
+
         <form className="discovery-form" onSubmit={submit}>
           <label htmlFor="discovery-arxiv-url">arXiv 地址或编号</label>
-          <div>
+          <div className="discovery-input-row">
             <input
               ref={inputRef}
               id="discovery-arxiv-url"
@@ -316,6 +332,19 @@ export function DiscoveryDialog({
           <small>
             不会抓取你输入的任意网址；系统只提取合法 arXiv ID，再调用受信任的公开接口。
           </small>
+          <div className="discovery-example">
+            <span>想先看看 Nature 怎么显示？</span>
+            <button
+              className="discovery-example-button"
+              type="button"
+              onClick={() => {
+                setArxivUrl("https://arxiv.org/abs/2008.08871");
+                inputRef.current?.focus();
+              }}
+            >
+              填入 Nature Communications 示例
+            </button>
+          </div>
         </form>
 
         {searching && <DiscoveryThinking />}
@@ -452,7 +481,20 @@ export function DiscoveryDialog({
                           {confidenceLabels[candidate.confidence]}
                         </strong>
                       </div>
-                      <h3>{candidate.title}</h3>
+                      <h3>
+                        {candidate.provider === "nature" &&
+                        candidate.kind === "peer_review_file"
+                          ? "Nature 透明同行评议文件"
+                          : candidate.title}
+                      </h3>
+                      {candidate.provider === "nature" &&
+                        candidate.kind === "peer_review_file" && (
+                          <p>
+                            这类合并文件可能包含 Decision Letter、Reviewer
+                            Reports 与 Author Response；具体轮次和内容以原 PDF
+                            为准。本站目前只链接原文件，尚不拆分 PDF 内的独立回复。
+                          </p>
+                        )}
                       {candidate.description && (
                         <p>{candidate.description}</p>
                       )}
@@ -469,7 +511,9 @@ export function DiscoveryDialog({
                           rel="noreferrer"
                         >
                           {candidate.kind === "peer_review_file"
-                            ? "打开 Peer Review File"
+                            ? candidate.provider === "nature"
+                              ? "打开透明同行评议文件"
+                              : "打开 Peer Review File"
                             : candidate.kind === "rebuttal_file"
                               ? "打开 Rebuttal 文件"
                               : "打开候选来源"}{" "}

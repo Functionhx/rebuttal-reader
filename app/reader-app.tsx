@@ -16,6 +16,12 @@ import type {
   ReviewThread,
   ThreadMessage,
 } from "@/lib/types";
+import {
+  compactVenue,
+  venueExistsInYear,
+  venueOptionsForYear,
+  yearOptions,
+} from "@/lib/library-filters";
 import { AiAssistant } from "./ai-assistant";
 import { DiscoveryDialog } from "./discovery-dialog";
 
@@ -97,10 +103,6 @@ function formatDate(value: string | null) {
     month: "short",
     day: "numeric",
   }).format(new Date(value));
-}
-
-function compactVenue(venue: string) {
-  return venue.replace(/\s+Conference$/i, "");
 }
 
 function cleanText(value: unknown) {
@@ -1023,31 +1025,11 @@ export function ReaderApp({
     return () => controller.abort();
   }, [detailAttempt, selectedSummary]);
 
-  const venues = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const paper of papers) {
-      const label = compactVenue(paper.venue);
-      counts.set(label, (counts.get(label) ?? 0) + 1);
-    }
-    return [
-      "全部",
-      ...Array.from(counts)
-        .sort(
-          ([venueA, countA], [venueB, countB]) =>
-            countB - countA || venueB.localeCompare(venueA),
-        )
-        .map(([label]) => label),
-    ];
-  }, [papers]);
-  const years = useMemo(
-    () => [
-      "全部",
-      ...Array.from(new Set(papers.map((paper) => paper.year)))
-        .sort((a, b) => b - a)
-        .map(String),
-    ],
-    [papers],
+  const venues = useMemo(
+    () => venueOptionsForYear(papers, year),
+    [papers, year],
   );
+  const years = useMemo(() => yearOptions(papers), [papers]);
 
   const filteredPapers = useMemo(() => {
     const normalized = deferredQuery.trim().toLowerCase();
@@ -1173,7 +1155,7 @@ export function ReaderApp({
               setShowDiscovery(true);
             }}
           >
-            用 arXiv 找 Rebuttal
+            Nature / GitHub 查找
           </button>
           <button
             type="button"
@@ -1183,6 +1165,18 @@ export function ReaderApp({
             数据与更新
           </button>
         </div>
+        <button
+          type="button"
+          className="mobile-discovery-button"
+          aria-label="使用 arXiv 跨 Nature、GitHub 与公开索引查找"
+          onClick={() => {
+            setShowAssistant(false);
+            setShowDiscovery(true);
+          }}
+        >
+          <span aria-hidden="true">⌕</span>
+          arXiv 查找
+        </button>
         <button
           type="button"
           className="mobile-library-button"
@@ -1216,7 +1210,8 @@ export function ReaderApp({
             </button>
           </div>
           <p className="library-description">
-            搜索公开 Review、作者回复与最终决定。正文仅在点开后读取。
+            当前列表是已索引公开案例（以 OpenReview 来源为主）；Nature
+            期刊与 GitHub 材料通过下方 arXiv 入口按需查找。
           </p>
           <button
             type="button"
@@ -1227,8 +1222,8 @@ export function ReaderApp({
             }}
           >
             <span>
-              <strong>有 arXiv 地址？</strong>
-              <small>跨 Nature、GitHub 与公开索引查找</small>
+              <strong>查 Nature Portfolio / GitHub</strong>
+              <small>检查主刊 / 子刊是否有公开 Peer Review File</small>
             </span>
             <b aria-hidden="true">→</b>
           </button>
@@ -1260,7 +1255,7 @@ export function ReaderApp({
 
           <div className="filter-grid">
             <label className="filter-control">
-              <span>会议 / Track</span>
+              <span>已收录会议 / 期刊</span>
               <select
                 value={venue}
                 onChange={(event) => {
@@ -1270,7 +1265,7 @@ export function ReaderApp({
               >
                 {venues.map((item) => (
                   <option value={item} key={item}>
-                    {item === "全部" ? "全部会议" : item}
+                    {item === "全部" ? "全部已收录会议 / 期刊" : item}
                   </option>
                 ))}
               </select>
@@ -1280,7 +1275,13 @@ export function ReaderApp({
               <select
                 value={year}
                 onChange={(event) => {
-                  setYear(event.target.value);
+                  const nextYear = event.target.value;
+                  setYear(nextYear);
+                  if (
+                    !venueExistsInYear(papers, venue, nextYear)
+                  ) {
+                    setVenue("全部");
+                  }
                   setPage(0);
                 }}
               >

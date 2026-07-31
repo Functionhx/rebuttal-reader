@@ -119,6 +119,12 @@ paper identity and publication rights can be verified. Likewise, “not found”
 means only that the currently queried public sources did not return a reliable
 match—it does **not** prove that no rebuttal exists.
 
+Nature results are currently returned inside the per-paper discovery dialog;
+they are not inserted into the left-hand OpenReview-oriented archive or its
+venue/year filters. The site links the combined peer-review file but does not
+yet split its internal decision letters, reviewer reports, and author responses
+into a native Rebuttal Reader timeline.
+
 ### Optional discovery credentials
 
 Basic discovery still works without private credentials: arXiv metadata,
@@ -356,6 +362,7 @@ scripts/
 config/venues.json                 # invitation registry for different venues
 lib/
 ├── discovery.ts                   # validation, matching, and source discovery helpers
+├── library-filters.ts             # year-authoritative venue filter facets
 ├── rag.ts                         # deterministic retrieval and evidence bounds
 └── types.ts                       # normalized model and source types
 tests/                             # build, API safety, retrieval, and normalization tests
