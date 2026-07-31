@@ -895,7 +895,7 @@ export function ReaderApp({
 
     const detailRequest = selectedSummary.iclrArchive
       ? {
-          url: "/api/iclr-archive",
+          url: "/api/iclr-archive?schema=title-kind-v1",
           body: {
             paperId: selectedSummary.id,
             pointer: selectedSummary.iclrArchive,
