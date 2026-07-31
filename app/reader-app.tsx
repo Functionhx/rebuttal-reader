@@ -16,6 +16,7 @@ import type {
   ReviewThread,
   ThreadMessage,
 } from "@/lib/types";
+import { AiAssistant } from "./ai-assistant";
 
 type ViewMode = "chain" | "responses" | "decision";
 
@@ -296,6 +297,89 @@ function hydratePaper(
     metaReview: cleanText(payload.review?.metareview) || null,
     threads,
     source: summary.source,
+  };
+}
+
+function detailRequestFor(summary: PaperIndexRecord) {
+  if (summary.iclrArchive) {
+    return {
+      url: "/api/iclr-archive?schema=title-kind-v1",
+      body: {
+        paperId: summary.id,
+        pointer: summary.iclrArchive,
+      },
+    };
+  }
+  if (summary.openReviewArchive) {
+    return {
+      url: "/api/openreview-archive",
+      body: {
+        paperId: summary.id,
+        pointer: summary.openReviewArchive,
+      },
+    };
+  }
+  if (summary.reviewBench) {
+    return {
+      url: "/api/reviewbench",
+      body: {
+        paperId: summary.id,
+        pointer: summary.reviewBench,
+      },
+    };
+  }
+  if (summary.detailUrl) {
+    return { url: summary.detailUrl, body: null };
+  }
+  return {
+    url: "/api/re2",
+    body: {
+      paperId: summary.id,
+      rebuttalRanges: summary.rebuttalRanges,
+      reviewRange: summary.reviewRange,
+      paperZip: summary.paperZip,
+    },
+  };
+}
+
+async function fetchPaperDetail(
+  summary: PaperIndexRecord,
+  signal?: AbortSignal,
+): Promise<PaperRecord> {
+  const request = detailRequestFor(summary);
+  const response = await fetch(request.url, {
+    method: request.body ? "POST" : "GET",
+    headers: request.body
+      ? { "Content-Type": "application/json" }
+      : undefined,
+    body: request.body ? JSON.stringify(request.body) : undefined,
+    signal,
+  });
+  const payload = (await response.json()) as
+    | DetailPayload
+    | ReviewBenchDetailPayload
+    | PaperRecord
+    | { error?: string };
+  if (!response.ok) {
+    throw new Error(
+      "error" in payload && payload.error
+        ? payload.error
+        : `HTTP ${response.status}`,
+    );
+  }
+  const detailPayload = payload as
+    | DetailPayload
+    | ReviewBenchDetailPayload
+    | PaperRecord;
+  const rawDetail =
+    "paper" in detailPayload
+      ? detailPayload.paper
+      : "rebuttals" in detailPayload
+        ? hydratePaper(summary, detailPayload)
+        : detailPayload;
+  return {
+    ...rawDetail,
+    titleKind: rawDetail.titleKind ?? summary.titleKind,
   };
 }
 
@@ -768,8 +852,10 @@ export function ReaderApp({
   const [selectedThread, setSelectedThread] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("chain");
   const [showUpdate, setShowUpdate] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const aiTriggerRef = useRef<HTMLButtonElement>(null);
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
@@ -878,6 +964,17 @@ export function ReaderApp({
     [papers, selectedPaperId],
   );
 
+  const loadPaperForAssistant = useCallback(
+    async (summary: PaperIndexRecord, signal?: AbortSignal) => {
+      const cached = detailCache.current.get(summary.id);
+      if (cached) return cached;
+      const detail = await fetchPaperDetail(summary, signal);
+      detailCache.current.set(detail.id, detail);
+      return detail;
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!selectedSummary) return;
     const cached = detailCache.current.get(selectedSummary.id);
@@ -893,70 +990,8 @@ export function ReaderApp({
     setDetailLoading(true);
     setDetailError("");
 
-    const detailRequest = selectedSummary.iclrArchive
-      ? {
-          url: "/api/iclr-archive?schema=title-kind-v1",
-          body: {
-            paperId: selectedSummary.id,
-            pointer: selectedSummary.iclrArchive,
-          },
-        }
-      : selectedSummary.openReviewArchive
-      ? {
-          url: "/api/openreview-archive",
-          body: {
-            paperId: selectedSummary.id,
-            pointer: selectedSummary.openReviewArchive,
-          },
-        }
-      : selectedSummary.reviewBench
-      ? {
-          url: "/api/reviewbench",
-          body: {
-            paperId: selectedSummary.id,
-            pointer: selectedSummary.reviewBench,
-          },
-        }
-      : selectedSummary.detailUrl
-        ? { url: selectedSummary.detailUrl, body: null }
-        : {
-            url: "/api/re2",
-            body: {
-              paperId: selectedSummary.id,
-              rebuttalRanges: selectedSummary.rebuttalRanges,
-              reviewRange: selectedSummary.reviewRange,
-              paperZip: selectedSummary.paperZip,
-            },
-          };
-
-    fetch(detailRequest.url, {
-      method: detailRequest.body ? "POST" : "GET",
-      headers: detailRequest.body
-        ? { "Content-Type": "application/json" }
-        : undefined,
-      body: detailRequest.body
-        ? JSON.stringify(detailRequest.body)
-        : undefined,
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.error || `HTTP ${response.status}`);
-        }
-        return payload as DetailPayload | ReviewBenchDetailPayload | PaperRecord;
-      })
-      .then((payload) => {
-        const rawDetail =
-          "paper" in payload
-            ? payload.paper
-            : "rebuttals" in payload
-              ? hydratePaper(selectedSummary, payload)
-              : payload;
-        const detail = {
-          ...rawDetail,
-          titleKind: rawDetail.titleKind ?? selectedSummary.titleKind,
-        };
+    fetchPaperDetail(selectedSummary, controller.signal)
+      .then((detail) => {
         detailCache.current.set(detail.id, detail);
         setSelectedPaper(detail);
         setDetailLoading(false);
@@ -1062,6 +1097,11 @@ export function ReaderApp({
       nextUrl.searchParams.set("paper", paperId);
       window.history.replaceState({}, "", nextUrl);
     }
+  }, []);
+
+  const closeAssistant = useCallback(() => {
+    setShowAssistant(false);
+    window.requestAnimationFrame(() => aiTriggerRef.current?.focus());
   }, []);
 
   const copyPaperLink = useCallback(async () => {
@@ -1351,6 +1391,17 @@ export function ReaderApp({
                     {sourceLabels[selectedPaper.source.type]}
                   </span>
                   <button
+                    ref={aiTriggerRef}
+                    className="toolbar-button ai-trigger"
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-controls="ai-assistant"
+                    aria-expanded={showAssistant}
+                    onClick={() => setShowAssistant(true)}
+                  >
+                    <span aria-hidden="true">✦</span> AI 共读
+                  </button>
+                  <button
                     type="button"
                     className="toolbar-button"
                     onClick={copyPaperLink}
@@ -1519,6 +1570,19 @@ export function ReaderApp({
           paperCount={libraryMeta.paperCount}
           conversationCount={libraryMeta.conversationCount}
           onClose={() => setShowUpdate(false)}
+        />
+      )}
+      {selectedPaper && (
+        <AiAssistant
+          key={`${selectedPaper.id}:${currentThread?.id ?? "all"}`}
+          open={showAssistant}
+          paper={selectedPaper}
+          summary={selectedSummary}
+          currentThread={currentThread}
+          papers={papers}
+          loadPaper={loadPaperForAssistant}
+          onOpenPaper={choosePaper}
+          onClose={closeAssistant}
         />
       )}
     </div>

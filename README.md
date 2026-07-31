@@ -1,20 +1,26 @@
+<div align="right">
+
+**English** · [简体中文](./README.zh-CN.md)
+
+</div>
+
 <div align="center">
 
-# 答辩录 · Rebuttal Reader
+# Rebuttal Reader · 答辩录
 
-### 别只看论文最后写成了什么，也看它如何回应质疑。
+### Don’t stop at what a paper became. Read how it answered scrutiny.
 
-把散落的 **Review → Author Response → Reviewer Follow-up → Meta-review → Decision**<br />
-重新组织成一条可以阅读、比较与学习的因果链。
+Reconstructing scattered **Review → Author Response → Reviewer Follow-up → Meta-review → Decision** records<br />
+into a coherent trail of arguments, evidence, and outcomes.
 
-[**打开在线版 ↗**](https://rebuttal-reader-functionhx.functionhx.chatgpt.site)　·　[**提交你的 Rebuttal ↗**](https://github.com/Functionhx/rebuttal-reader/issues/new?template=submit-rebuttal.yml)　·　[数据版图](#数据版图)　·　[本地运行](#本地运行)
+[**Explore the live reader ↗**](https://rebuttal-reader-functionhx.functionhx.chatgpt.site)　·　[**Submit your rebuttal ↗**](https://github.com/Functionhx/rebuttal-reader/issues/new?template=submit-rebuttal.yml)　·　[Data landscape](#data-landscape)　·　[Run locally](#run-locally)
 
 </div>
 
 <a href="https://rebuttal-reader-functionhx.functionhx.chatgpt.site">
   <img
     src="./public/og.png"
-    alt="答辩录 Rebuttal Reader — 从质疑到决定"
+    alt="Rebuttal Reader — from scrutiny to decision"
     width="100%"
   />
 </a>
@@ -23,131 +29,164 @@
 
 <div align="center">
 
-| **62,532** | **286,659** | **2018–2026** | **按需读取** |
+| **62,532** | **286,659** | **2018–2026** | **On demand** |
 |:---:|:---:|:---:|:---:|
-| 去重后的公开案例 | Reviewer 线程 | 当前索引年份 | 点开一篇，才读取一篇 |
+| deduplicated public cases | reviewer threads | years currently indexed | one paper loaded at a time |
 
 </div>
 
 > [!NOTE]
-> **Public Beta.** 当前数字来自仓库内最新生成的轻量索引。数据采用手动触发更新；不同数据源存在交集，页面展示的是按 Forum ID 合并后的数量。
+> **Public Beta.** These figures come from the latest lightweight indexes generated in this repository. Updates are triggered manually. Because sources overlap, the live total is deduplicated by Forum ID rather than calculated by adding the source counts below.
 
-## 它解决什么问题
+## The final PDF is only half the story
 
-OpenReview 里信息很完整，却经常分散在多层 Note 和 Comment 中；公开数据集适合研究，却不适合像读文章一样浏览；PDF 形式的 response letter 又很难横向比较。
+OpenReview preserves rich peer-review conversations, but they are often scattered across nested Notes and Comments. Research datasets make those conversations analyzable, but rarely pleasant to read. Journal response letters are frequently locked inside long PDFs that are difficult to navigate or compare.
 
-答辩录不只是“收集 rebuttal”，而是恢复一篇投稿经历的上下文：
+Rebuttal Reader restores the missing context around a submission:
 
 ```text
-Reviewer 提出了什么关键质疑？
-               ↓
-作者如何逐点回应、澄清或补充实验？
-               ↓
-Reviewer 是否继续追问，态度是否改变？
-               ↓
-评分发生了什么变化？
-               ↓
-Meta-review 如何权衡争议，最终为何接受或拒绝？
+What was the reviewer’s central concern?
+                    ↓
+How did the authors clarify, counter, or add evidence?
+                    ↓
+Did the reviewer follow up or change their position?
+                    ↓
+How did the scores move?
+                    ↓
+How did the meta-review weigh the dispute—and why was the paper accepted or rejected?
 ```
 
-最终呈现的不是一堆孤立文档，而是一条**从质疑到决定的证据链**。
+The result is not a folder of rebuttal files. It is an **evidence trail from scrutiny to decision**.
 
-## 一眼读懂一场 Rebuttal
+## Read a rebuttal as an argument, not an attachment
 
-- **逐 Reviewer 因果链**：把每位 Reviewer 的初评、作者回复和后续追问放回同一线程。
-- **只看作者回复**：汇总全部 Author Response，快速学习回复结构与表达方式。
-- **决定与 Meta-review**：单独查看评分记录、最终决定及领域主席的判断依据。
-- **可搜索的案例库**：按标题、主题、会议、年份或 Forum ID 检索与筛选。
-- **评分变化可视化**：区分初评和终评；源数据没有保存的值明确标为缺失，不做猜测。
-- **完整来源说明**：每篇保留原始 Forum、来源类型、许可与数据边界。
-- **分享单篇案例**：选中的论文写入 URL，可复制链接直接抵达同一阅读位置。
-- **轻量首屏**：浏览器先加载目录；Review 与回复正文只在点开论文后读取。
+- **A causal thread for every reviewer** — initial review, author response, and follow-up discussion remain in the same conversational context.
+- **Author-response view** — collect every Author Response in one place to study structure, tone, and evidence.
+- **Decision and meta-review view** — inspect score records, the final outcome, and the area chair’s or editor’s reasoning separately.
+- **A searchable case library** — filter by title, topic, venue, year, or Forum ID.
+- **Honest score timelines** — distinguish initial and final ratings; values absent from the source stay absent.
+- **Traceable provenance** — every case retains its source type, original Forum, license information, and known data boundaries.
+- **Shareable case URLs** — the selected paper is encoded in the URL, so a copied link opens the same reading position.
+- **A lightweight first load** — the browser receives an index first; review and response bodies load only after a paper is opened.
 
-## Submit your rebuttal · 一起搭建社区
+## Optional DeepSeek assistant · Explainable RAG
 
-> [!TIP]
-> **一份认真写过的 Rebuttal，不应该在投稿系统关闭后就消失。**<br />
-> 如果你愿意公开自己的回复，无论论文最终是 **Accepted、Rejected、Withdrawn**
-> 还是仍在讨论中，都欢迎把它留在这里，成为下一位作者可以检索、阅读和学习的真实案例。
+Rebuttal Reader includes an optional local AI assistant for three focused tasks:
 
-<div align="center">
+1. **Understand this rebuttal** — identify the reviewer’s central concern, the response strategy, the evidence used, and what remained unresolved;
+2. **Find similar cases** — retrieve related public rebuttals from the local index and explain the observable matching signals;
+3. **Improve a response draft** — suggest structure, tone, and missing reasoning without inventing experiments, results, citations, or venue policies.
 
-[**提交一篇 Rebuttal ↗**](https://github.com/Functionhx/rebuttal-reader/issues/new?template=submit-rebuttal.yml)　·　[提交数据适配器或功能 PR ↗](https://github.com/Functionhx/rebuttal-reader/compare)
-
-</div>
-
-目前欢迎三类材料：
-
-1. **Conference rebuttal** — 最终决定前提交的作者回复；
-2. **Response to reviewers** — 期刊修改稿的逐点回复信；
-3. **Public discussion** — 作者、Reviewer、AC 或 Editor 的公开多轮讨论。
-
-提交时请提供论文标题、会议或期刊与年份、DOI / arXiv / Forum
-链接、材料类型、公开来源及可选的最终结果。可以提交已经公开的 OpenReview
-Forum、作者本人维护的 GitHub / 项目页面，也可以在确认拥有公开权利后提交自己的
-PDF 或 Markdown。项目会保留来源和许可信息，并把不同材料类型分开呈现。
-
-为了保护作者与 Reviewer，提交者需要确认：
-
-- 自己是作者、权利人，或材料已经由可信来源公开；
-- 已移除不应公开的 Reviewer 身份、邮箱及机密评论；
-- 公开行为符合会议、期刊与投稿系统政策；
-- 接受项目对材料进行索引、格式化展示，并可响应权利人的更正或删除请求。
-
-不方便公开完整 Review 也没关系：可以只提交作者拥有权利的 Rebuttal，并注明哪些上下文可以展示。这里不评判论文输赢，也不只收藏“成功翻盘”——**被拒稿后依然清晰、克制、有证据的回复，同样值得学习。**
-
-## 数据版图
-
-答辩录把多个**公开来源**规范化成统一的 `PaperRecord`，再按 Forum ID 去重。下面的数量是各来源自身的索引规模，因此不能直接相加：
-
-| 数据源 | 当前索引 | 主要覆盖 | 读取方式 |
-|---|---:|---|---|
-| [ReviewRebuttal / Re²](https://huggingface.co/datasets/Daoze/ReviewRebuttal) | 14,830 篇 · 53,818 线程 | 45 个较早期 OpenReview venue | 本地轻量索引 + 远程安全字节范围 |
-| [OpenReview Raw public archive](https://huggingface.co/datasets/Jasonpicky/openreview_raw) | 35,151 篇 · 182,783 线程 | 2018–2025 公共 Note | 按年份分片目录 + 远程过滤查询 |
-| [ReviewBench](https://huggingface.co/datasets/Samarth0710/reviewbench) | 5,536 篇 · 19,889 线程 | NeurIPS、ICLR、ICML、TMLR、EMNLP、CoRL、COLM | 远程 Parquet 行定位 |
-| [ICLR public archive](https://huggingface.co/datasets/MlouisBE/iclr-rebuttal-analysis) | 14,708 篇 · 57,267 线程 | ICLR 2026 公共讨论 | 远程 JSON 精确字节范围 |
-| [OpenReview API](https://openreview.net/) | 手动增量 | 指定 Forum 或 registry venue | 公开权限检查后按篇保存 |
-
-### 为什么有时显示 Reviewer 的主题标题或 Forum ID？
-
-并不是所有派生数据集都保存了投稿 Note 的完整元数据。部分记录只有：
-
-- OpenReview Forum ID；
-- Reviewer 给这条 Review 写的主题标题；
-- Review、Author Response 与评分等对话字段。
-
-答辩录会优先使用真实论文标题；如果单篇详情中能够取得论文元数据，页面会在加载后补回标题、作者与摘要。若上游数据确实没有保存标题，则通过 `titleKind` 明确标记，并退回 Reviewer 主题标题或 Forum ID。项目刻意**不根据正文臆造论文标题**，因为一个醒目的错误标题比一个诚实的标识符更具误导性。
-
-## 数据没有被“塞进网页”
-
-部署包不会携带 896 MB 的 OpenReview Raw Parquet、1.36 GB 的 ICLR 2026 原始 JSON，也不会下载全部论文 PDF 或进行全文 OCR。
+The first version uses a lightweight, inspectable RAG pipeline rather than a hidden vector database:
 
 ```mermaid
 flowchart LR
-    A["手动运行更新脚本"] --> B["生成轻量目录<br/>Forum · venue · year · pointers"]
-    B --> C["浏览器加载目录<br/>搜索 / 筛选 / 分页"]
-    C -->|"点击一篇"| D["Edge API 校验请求<br/>Forum 或安全读取范围"]
-    D --> E["公开源数据 / CDN"]
-    E -->|"只返回这一篇"| F["统一 PaperRecord<br/>线程 · 评分 · 决定 · 来源"]
+    A["Current paper / writing question"] --> B["Local retrieval over 62,532 summaries"]
+    B --> C["Title tokens · topics · venue · year"]
+    C --> D["Fetch only the top matching public cases"]
+    D --> E["Bounded evidence excerpts"]
+    E --> F["DeepSeek generation"]
+    F --> G["Answer + retrieval reasons + case links"]
 ```
 
-历史目录按年份分片，当前全部目录原始约 **57.4 MB**，gzip 估算约 **6.3 MB**，最大单片小于 **9 MB**。正文由源站和 CDN 按需读取并缓存；`.cache/` 只服务于本地生成流程，不提交、不部署，删除后可重新生成。
+Similarity is presented as evidence, not as an opaque confidence score. Every retrieved case keeps a Rebuttal Reader link and its canonical Forum URL, and the assistant is explicitly instructed to acknowledge uncertainty and never fabricate missing evidence.
 
-## 公开性与数据边界
+### Enable DeepSeek locally
 
-这个项目的原则很简单：**能公开验证的才进入索引，缺失的就保持缺失。**
+The API key is read only by the server process. It is never placed in browser state, source code, Git history, generated indexes, or deployment assets.
 
-- OpenReview 增量适配器逐条检查 `readers` 是否包含 `everyone`；私有 Note 直接跳过。
-- 不绕过登录，不读取 CMT、HotCRP、PaperPlaza 等封闭系统中的审稿材料。
-- 不把“会议使用 OpenReview”误判为“该会议公开评审”。
-- 不镜像论文 PDF；评论、回复与元数据分别保留原始来源和许可说明。
-- 不猜测缺失评分、Meta-review、作者信息或论文标题。
-- 派生数据与 OpenReview 原始来源在界面中分别标识，便于回到 canonical source 核验。
-- 更新所需凭据只从本地环境变量临时读取，永远不应写入仓库。
+```bash
+export DEEPSEEK_API_KEY="your-key-here"
+# Optional; defaults to the current low-latency model:
+export DEEPSEEK_MODEL="deepseek-v4-flash"
+npm run dev
+```
 
-## 本地运行
+The public deployment deliberately ships without a maintainer API key. Metadata retrieval and similar-case discovery remain available, while model generation stays disabled. Do not enable public model access without adding authentication, quotas, and rate limiting. The adapter follows the official [DeepSeek Chat Completions API](https://api-docs.deepseek.com/api/create-chat-completion/).
 
-需要 **Node.js 22.13+**。
+## Submit your rebuttal · Help build a public learning commons
+
+> [!TIP]
+> **A carefully written rebuttal should not disappear when the submission portal closes.**<br />
+> If you are willing to share yours, we welcome cases that were **Accepted, Rejected, Withdrawn, or still under discussion**. A calm, rigorous response to an unsuccessful submission can be every bit as instructive as a celebrated turnaround.
+
+<div align="center">
+
+[**Submit your rebuttal ↗**](https://github.com/Functionhx/rebuttal-reader/issues/new?template=submit-rebuttal.yml)　·　[Contribute an adapter or feature ↗](https://github.com/Functionhx/rebuttal-reader/compare)
+
+</div>
+
+We currently welcome three distinct kinds of material:
+
+1. **Conference rebuttal** — an author response submitted before the final decision;
+2. **Response to reviewers** — a point-by-point letter accompanying a journal revision;
+3. **Public discussion** — an open, multi-round conversation among authors, reviewers, area chairs, or editors.
+
+The [submission issue form](https://github.com/Functionhx/rebuttal-reader/issues/new?template=submit-rebuttal.yml) asks for the paper title, venue and year, DOI / arXiv / Forum link, material type, public source, and optional outcome. You can point us to an already public OpenReview Forum, an author-maintained repository or project page, or material you own and have the right to publish in PDF or Markdown form.
+
+To protect authors and reviewers, submitters must confirm that:
+
+- they are an author or rights holder, or the material is already public through a trustworthy source;
+- reviewer identities, email addresses, and confidential comments that should not be disclosed have been removed;
+- publication is consistent with the relevant venue, journal, and review-platform policies;
+- the project may index and format the material, while honoring legitimate correction or removal requests.
+
+Cannot share the full reviews? That is fine. You may submit only the rebuttal you have the right to publish and state which surrounding context may be shown. This project is not a scoreboard, and it does not curate only “successful” rebuttals. The goal is to build a community library of real responses that future authors can inspect, compare, and learn from.
+
+## Data landscape
+
+Rebuttal Reader normalizes several **public sources** into one `PaperRecord` model and deduplicates records by Forum ID. The figures below describe each source’s own index and therefore must not be added together:
+
+| Source | Current index | Primary coverage | Access pattern |
+|---|---:|---|---|
+| [ReviewRebuttal / Re²](https://huggingface.co/datasets/Daoze/ReviewRebuttal) | 14,830 papers · 53,818 threads | 45 earlier OpenReview venues | local lightweight index + safe remote byte ranges |
+| [OpenReview Raw public archive](https://huggingface.co/datasets/Jasonpicky/openreview_raw) | 35,151 papers · 182,783 threads | public Notes from 2018–2025 | year-sharded indexes + remote filtered queries |
+| [ReviewBench](https://huggingface.co/datasets/Samarth0710/reviewbench) | 5,536 papers · 19,889 threads | NeurIPS, ICLR, ICML, TMLR, EMNLP, CoRL, and COLM | remote Parquet row lookup |
+| [ICLR public archive](https://huggingface.co/datasets/MlouisBE/iclr-rebuttal-analysis) | 14,708 papers · 57,267 threads | public ICLR 2026 discussions | exact remote JSON byte ranges |
+| [OpenReview API](https://openreview.net/) | manual increments | selected Forums or registry venues | per-paper storage after a public-access check |
+
+### Why do some records show a reviewer subject or Forum ID instead of a paper title?
+
+Not every derived dataset preserves the complete metadata of the original submission Note. Some records contain only:
+
+- the OpenReview Forum ID;
+- the subject line written for a review;
+- the review, Author Response, scores, and discussion fields.
+
+Rebuttal Reader always prefers a verified paper title. When paper metadata is available in the per-paper payload, the title, authors, and abstract are restored after the case loads. If the upstream source truly omitted the title, `titleKind` marks that limitation explicitly and the interface falls back to the reviewer subject or Forum ID.
+
+The project deliberately **does not invent a paper title from review text**. A visibly incomplete identifier is more honest—and less misleading—than a confident but incorrect title.
+
+## The data is not bundled into the webpage
+
+The deployment does not ship a 896 MB OpenReview Raw Parquet file, the 1.36 GB ICLR 2026 source JSON, every paper PDF, or a full-text OCR archive.
+
+```mermaid
+flowchart LR
+    A["Run an update script manually"] --> B["Generate lightweight indexes<br/>Forum · venue · year · pointers"]
+    B --> C["Browser loads the index<br/>search · filter · paginate"]
+    C -->|"Open one paper"| D["Edge API validates the request<br/>Forum or safe byte range"]
+    D --> E["Public source data / CDN"]
+    E -->|"Return only this paper"| F["Normalized PaperRecord<br/>threads · scores · decision · source"]
+```
+
+Historical indexes are sharded by year. The complete current index is about **57.4 MB** uncompressed, approximately **6.3 MB** gzipped, with every individual shard below **9 MB**. Full discussion bodies are fetched on demand from source hosts and CDNs, then cached. The local `.cache/` directory exists only for index generation; it is neither committed nor deployed and can be regenerated after deletion.
+
+## Public access and privacy boundaries
+
+The project follows one rule: **only publicly verifiable material enters the index; missing data remains missing.**
+
+- The incremental OpenReview adapter checks every Note for a `readers` entry containing `everyone`; private Notes are skipped.
+- It never bypasses authentication or reads review material from closed CMT, HotCRP, PaperPlaza, or similar workflows.
+- A venue’s use of OpenReview is never treated as proof that its reviews are public.
+- Paper PDFs are not mirrored. Comments, responses, and metadata retain separate source and license information.
+- Missing scores, meta-reviews, author details, and paper titles are never guessed.
+- Derived datasets and canonical OpenReview sources are labeled separately in the interface.
+- Credentials used for updates are read temporarily from local environment variables and must never be written to the repository.
+
+## Run locally
+
+Requires **Node.js 22.13+**.
 
 ```bash
 git clone https://github.com/Functionhx/rebuttal-reader.git
@@ -156,74 +195,76 @@ npm ci
 npm run dev
 ```
 
-打开终端显示的本地地址。完整验证使用：
+Open the local URL printed in the terminal. Run the complete verification suite with:
 
 ```bash
 npm test
 ```
 
-测试覆盖站点构建、页面关键结构、公开权限闸门、索引边界，以及 `Review → Author Response → Reviewer Follow-up` 的归一化结果。
+The tests cover the site build, essential rendered structure, public-access gates, index boundaries, and normalized `Review → Author Response → Reviewer Follow-up` sequences.
 
-## 手动更新数据
+## Update the data manually
 
-项目没有后台常驻爬虫。站长决定什么时候读取公开来源、生成新索引并重新部署。
+There is no always-on crawler. The maintainer decides when to read public sources, rebuild the indexes, and redeploy.
 
-### 刷新全部公开目录
+### Refresh every public index
 
 ```bash
 npm run update:data
 ```
 
-Re² 首次运行会下载约 1 GB 的公开原始 JSON，并在之后复用本地缓存；其他适配器通过远程 Parquet 列读取或顺序字节扫描生成轻量目录，不会把完整数据集写入项目。
+On its first run, the Re² updater downloads roughly 1 GB of public source JSON and reuses that local cache thereafter. Other adapters build lightweight indexes through remote Parquet column reads or sequential byte scans without writing the complete datasets into the project.
 
-### 分来源更新
+### Update one source at a time
 
 ```bash
-# ReviewBench 多会议公开归档
+# ReviewBench multi-venue public archive
 npm run update:reviewbench
 
-# OpenReview Raw 历史公共目录
+# OpenReview Raw historical public index
 npm run update:openreview-archive
 
-# ICLR 2026 公共讨论
+# ICLR 2026 public discussions
 npm run update:iclr-archive
 
-# 大文件扫描中断后，从断点继续
+# Resume an interrupted large-file scan
 npm run update:iclr-archive -- --resume
 ```
 
-### 从 OpenReview 增量导入
+### Import incrementally from OpenReview
 
 ```bash
-# 单个公开 Forum
+# One public Forum
 npm run update:openreview -- --forum 7QfLW-XZTl
 
-# 一个 venue 下的全部公开 Forum
+# Every public Forum under a venue
 npm run update:openreview -- --venue ICLR.cc/2026/Conference
 
-# 扫描 config/venues.json 中配置的 venue
+# Every venue configured in config/venues.json
 npm run update:openreview -- --all
 ```
 
-OpenReview 批量接口可能要求已验证会话。更新脚本可读取本地 `OPENREVIEW_TOKEN`，或临时使用 `OPENREVIEW_USERNAME` / `OPENREVIEW_PASSWORD` 取得短期 token。凭据只用于站长的手动更新；**网站访客不需要 OpenReview、GitHub 或 ChatGPT 登录。**
+OpenReview’s batch API may require a verified session. The updater can read a local `OPENREVIEW_TOKEN`, or temporarily use `OPENREVIEW_USERNAME` / `OPENREVIEW_PASSWORD` to obtain a short-lived token. These credentials are used only for maintainer-triggered updates. **Visitors do not need an OpenReview, GitHub, or ChatGPT account.**
 
-## 项目结构
+## Project structure
 
 ```text
 app/
-├── reader-app.tsx                 # 搜索、阅读器与线程交互
+├── reader-app.tsx                 # search, reader, and thread interaction
+├── ai-assistant.tsx               # explainable RAG and DeepSeek drawer
 └── api/
-    ├── re2/                       # Re² 安全字节范围读取
-    ├── reviewbench/               # Parquet 单行读取与规范化
-    ├── openreview-archive/        # 公共 Note 过滤读取
-    └── iclr-archive/              # ICLR JSON 范围读取
+    ├── assistant/                  # local-only DeepSeek adapter
+    ├── re2/                       # safe Re² byte-range reads
+    ├── reviewbench/               # Parquet row lookup and normalization
+    ├── openreview-archive/        # filtered reads from public Notes
+    └── iclr-archive/              # ICLR JSON range reads
 
 public/data/
-├── re2/index.json                 # Re² 轻量目录
-├── reviewbench/index.json         # 多会议行指针
-├── openreview-archive/            # 按年份切分的 Forum 目录
-├── iclr-archive/index.json        # 精确 JSON 字节指针
-└── openreview/                    # OpenReview API 增量目录与按篇详情
+├── re2/index.json                 # lightweight Re² index
+├── reviewbench/index.json         # multi-venue row pointers
+├── openreview-archive/            # year-sharded Forum indexes
+├── iclr-archive/index.json        # exact JSON byte pointers
+└── openreview/                    # incremental OpenReview indexes and case details
 
 scripts/
 ├── update-re2.mjs
@@ -232,39 +273,41 @@ scripts/
 ├── update-iclr-archive.mjs
 └── update-openreview.mjs
 
-config/venues.json                 # 不同 venue 的 invitation 适配 registry
-lib/types.ts                       # 统一数据模型与来源类型
-tests/                             # 构建、数据边界与规范化测试
+config/venues.json                 # invitation registry for different venues
+lib/
+├── rag.ts                         # deterministic retrieval and evidence bounds
+└── types.ts                       # normalized model and source types
+tests/                             # build, API safety, retrieval, and normalization tests
 ```
 
-核心模型保留 `Paper`、Reviewer 线程、逐轮 Message、前后评分、Meta-review、Decision、Source、License 与 Provenance；三类材料不会被混为一谈：
+The core model retains paper metadata, reviewer threads, round-by-round messages, scores before and after discussion, meta-review, decision, source, license, and provenance. It keeps three material types distinct:
 
-1. `conference_rebuttal` — 决定前的会议作者回复；
-2. `response_to_reviewers` — 期刊修改后的逐点回复；
-3. `public_discussion` — 作者、Reviewer 与 AC 的公开多轮讨论。
+1. `conference_rebuttal` — an author response submitted before a conference decision;
+2. `response_to_reviewers` — a point-by-point response accompanying a journal revision;
+3. `public_discussion` — a public multi-round discussion among authors, reviewers, and area chairs.
 
-## 部署、备份与迁移
+## Deployment, backup, and portability
 
-当前生产版本运行在：
+The current production build runs at:
 
 **[rebuttal-reader-functionhx.functionhx.chatgpt.site ↗](https://rebuttal-reader-functionhx.functionhx.chatgpt.site)**
 
-GitHub 仓库保存完整源码、轻量目录、更新脚本和构建配置，是可恢复的独立副本。依赖目录、构建产物、`.cache/`、环境变量和凭据均不会提交。
+This GitHub repository is the independent, recoverable copy: it contains the complete source, lightweight indexes, update scripts, and build configuration. Dependencies, generated build output, `.cache/`, environment variables, and credentials are not committed.
 
-当前构建产物是 Cloudflare Worker 兼容的 vinext 应用，不依赖 D1 或 R2。如果现有托管地址不可用，可以把本仓库连接到支持服务端函数或 Edge Worker 的平台，使用 `npm run build` 构建，再切换自定义域名。
+The current artifact is a vinext application compatible with Cloudflare Workers and does not depend on D1 or R2. If the present hosting URL becomes unavailable, the repository can be connected to another platform that supports server-side functions or Edge Workers, built with `npm run build`, and placed behind a custom domain.
 
 > [!IMPORTANT]
-> GitHub Pages 只能托管静态文件，无法直接运行本项目的四个按篇读取 API。仓库可以完整备份项目，但备用网址应部署到支持服务端函数的环境。
+> GitHub Pages can host static files only; it cannot run the four per-paper API routes used by this project. The repository is a complete backup, but a fallback deployment still needs an environment with server-side functions.
 
-## 设计取向
+## Design principles
 
-答辩录把公开同行评议当作一种值得认真阅读的文献类型。界面因此刻意避免“排行榜式”地评价谁赢了，而是帮助读者回答三个问题：
+Rebuttal Reader treats public peer review as a body of writing worth reading carefully. The interface deliberately avoids declaring who “won.” It is designed to help readers answer three more useful questions:
 
-1. 质疑有没有被准确理解？
-2. 回应提供了什么证据？
-3. 讨论如何影响了最后的判断？
+1. Was the criticism understood accurately?
+2. What evidence did the response provide?
+3. How did the discussion shape the final judgment?
 
-如果它能让一次 rebuttal 少一点慌乱、多一点结构，这个项目就已经有价值。
+If this project can make one rebuttal less frantic and more structured, it has done something worthwhile.
 
 ---
 
@@ -272,6 +315,6 @@ GitHub 仓库保存完整源码、轻量目录、更新脚本和构建配置，�
 
 **Public peer review, reconstructed.**
 
-[开始阅读](https://rebuttal-reader-functionhx.functionhx.chatgpt.site) · [提交你的 Rebuttal](https://github.com/Functionhx/rebuttal-reader/issues/new?template=submit-rebuttal.yml) · [查看数据更新方式](#手动更新数据) · [回到顶部](#答辩录--rebuttal-reader)
+[Start reading](https://rebuttal-reader-functionhx.functionhx.chatgpt.site) · [Submit your rebuttal](https://github.com/Functionhx/rebuttal-reader/issues/new?template=submit-rebuttal.yml) · [Update the data](#update-the-data-manually) · [Back to top](#rebuttal-reader--答辩录)
 
 </div>

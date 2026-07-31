@@ -1,0 +1,92 @@
+name: 提交 Rebuttal（中文）
+description: 分享你有权公开的 Rebuttal、审稿回复信或公开同行评议讨论
+title: "[Rebuttal 投稿] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 感谢你为答辩录贡献真实的同行评议经历
+
+        每一段真实的审稿经历，都可能帮助后来者写出更清晰、更有说服力的回复。无论论文最终是 **录用、拒稿、撤稿、结果待定，还是仍在讨论中**，我们都真诚欢迎。
+
+        请只提交你有权分享、且不包含机密信息的材料。如果完整 Review 不方便公开，也可以只提交作者回复。
+
+  - type: input
+    id: paper_title
+    attributes:
+      label: 论文标题
+      description: 请填写论文或稿件的完整标题。
+      placeholder: 论文完整标题
+    validations:
+      required: true
+
+  - type: input
+    id: venue
+    attributes:
+      label: 会议、期刊与年份
+      description: 可以是会议、期刊、Workshop 或其他同行评议平台。
+      placeholder: 例如 ICLR 2026、CVPR 2025 或 TMLR 2024
+    validations:
+      required: true
+
+  - type: dropdown
+    id: material_type
+    attributes:
+      label: 材料类型
+      options:
+        - Conference rebuttal（会议答辩）
+        - Response to reviewers（审稿回复信）
+        - Public discussion（公开讨论）
+        - 其他公开同行评议材料
+    validations:
+      required: true
+
+  - type: input
+    id: paper_url
+    attributes:
+      label: 论文链接
+      description: 请提供 DOI、arXiv、OpenReview Forum、项目主页或其他可核验的来源。
+      placeholder: https://...
+    validations:
+      required: true
+
+  - type: input
+    id: material_url
+    attributes:
+      label: Rebuttal 或 Response 的公开链接
+      description: 可以链接到 OpenReview、GitHub、项目主页或其他公开来源。如需附加文件，请将文件拖入下方的补充说明。
+      placeholder: https://...
+
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: 最终结果
+      description: 这不是排名字段，只用于还原一次完整的投稿经历。
+      options:
+        - Accepted（录用）
+        - Rejected（拒稿）
+        - Withdrawn（撤稿）
+        - Pending / In discussion（待定或讨论中）
+        - Prefer not to say（不便透露）
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 补充说明
+      description: 可说明匿名方式、公开范围、许可、数据缺失或希望重点展示的讨论。也可以在这里拖入你有权公开的文件。
+      placeholder: 可选的补充信息
+
+  - type: checkboxes
+    id: rights
+    attributes:
+      label: 权利与隐私确认
+      description: 以下四项均需确认，我们才能审核你的投稿。
+      options:
+        - label: 我是作者或权利人，或者这些材料已经由可信来源公开，并且我有权提交。
+          required: true
+        - label: 我已移除所有不应公开的 Reviewer 身份、邮箱和机密评论。
+          required: true
+        - label: 此提交符合相关会议、期刊及投稿系统的公开政策。
+          required: true
+        - label: 我同意本项目索引、格式化并展示这些材料，也理解权利人可以请求更正或删除。
+          required: true
